@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { getPaginationParams, getPaginationResult } = require('../utils/pagination');
+const { normalizePhoneNumber } = require('../utils/phone');
 
 const router = express.Router();
 
@@ -105,9 +106,10 @@ router.post('/', async (req, res) => {
 
         // If no contact_id but phone_normalized provided, try to find matching contact
         if (!finalContactId && phone_normalized) {
+          const normalizedPhone = normalizePhoneNumber(phone_normalized);
           const contactResult = await client.query(
             'SELECT id FROM contacts WHERE phone_normalized = $1 AND created_by = $2',
-            [phone_normalized, req.user.id]
+            [normalizedPhone, req.user.id]
           );
           if (contactResult.rows.length > 0) {
             finalContactId = contactResult.rows[0].id;

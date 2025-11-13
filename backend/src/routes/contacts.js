@@ -62,43 +62,31 @@ router.post('/', async (req, res) => {
   try {
     const { name, phone_raw, phone_normalized, created_at } = req.body;
 
-    if (!name || !phone_raw || !phone_normalized) {
-      return res.status(400).json({ error: 'Name, phone_raw, and phone_normalized are required' });
+    if (!name || !phone_raw) {
+      return res.status(400).json({ error: 'Name and phone_raw are required' });
     }
 
     // Normalize phone number server-side
-    const normalizedPhone = normalizePhoneNumber(phone_normalized);
+    const normalizedPhone = normalizePhoneNumber(phone_raw);
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      // Try to insert
-      try {
-        const result = await client.query(
-          'INSERT INTO contacts (name, phone_raw, phone_normalized, created_by, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
-          [name, phone_raw, normalizedPhone, req.user.id, created_at || new Date()]
-        );
-        await client.query('COMMIT');
-        return res.status(201).json({ contact: result.rows[0] });
-      } catch (insertError) {
-        if (insertError.code === '23505') { // Unique violation
-          // Fetch existing contact
-          const existingResult = await client.query(
-            'SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts WHERE phone_normalized = $1',
-            [normalizedPhone]
-          );
+      // Check if a contact with this phone number already exists
+      const existingResult = await client.query(
+        'SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts WHERE phone_normalized = $1',
+        [normalizedPhone]
+      );
 
-          if (existingResult.rows.length === 0) {
-            throw insertError; // Should not happen
-          }
+      if (existingResult.rows.length > 0) {
+        const existing = existingResult.rows[0];
+        const incomingCreatedAt = new Date(created_at || new Date());
 
-          const existing = existingResult.rows[0];
-          const incomingCreatedAt = new Date(created_at || new Date());
-
-          // Older wins rule
-          if (incomingCreatedAt < new Date(existing.created_at)) {
-            // Update existing with incoming data
+        // If the existing contact belongs to the same user
+        if (existing.created_by === req.user.id) {
+          // Update the existing contact with newer data if incoming is newer
+          if (incomingCreatedAt >= new Date(existing.created_at)) {
             const updateResult = await client.query(
               'UPDATE contacts SET name = $1, phone_raw = $2, updated_at = NOW() WHERE id = $3 RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
               [name, phone_raw, existing.id]
@@ -106,14 +94,36 @@ router.post('/', async (req, res) => {
             await client.query('COMMIT');
             return res.json({ contact: updateResult.rows[0] });
           } else {
-            // Return existing
+            // Return existing contact
             await client.query('COMMIT');
             return res.json({ contact: existing });
           }
         } else {
-          throw insertError;
+          // Contact exists but belongs to different user
+          // Return conflict error - don't allow duplicate contacts across users
+          await client.query('COMMIT');
+          return res.status(409).json({
+            error: 'Contact with this phone number already exists',
+            existing_contact: {
+              id: existing.id,
+              name: existing.name,
+              phone_raw: existing.phone_raw,
+              created_by: existing.created_by,
+              created_at: existing.created_at
+            }
+          });
         }
       }
+
+      // No existing contact found, create new one
+      const result = await client.query(
+        'INSERT INTO contacts (name, phone_raw, phone_normalized, created_by, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
+        [name, phone_raw, normalizedPhone, req.user.id, created_at || new Date()]
+      );
+
+      await client.query('COMMIT');
+      return res.status(201).json({ contact: result.rows[0] });
+
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
