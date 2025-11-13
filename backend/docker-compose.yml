@@ -1,6 +1,7 @@
 services:
-  db:
+  ran-crm-db:
     image: postgres:17-alpine
+    container_name: ran-crm-postgres
     environment:
       POSTGRES_DB: ran_crm
       POSTGRES_USER: postgres
@@ -16,12 +17,16 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
-    build: .
+  ran-crm-app:
+    build:
+      context: .
+      args:
+        NODE_ENV: development
+    container_name: ran-crm-backend
     ports:
       - "3000:3000"
     environment:
-      DB_HOST: db
+      DB_HOST: ran-crm-db
       DB_PORT: 5432
       DB_NAME: ran_crm
       DB_USER: postgres
@@ -30,7 +35,7 @@ services:
       JWT_EXPIRES_IN: 24h
       NODE_ENV: development
     depends_on:
-      db:
+      ran-crm-db:
         condition: service_healthy
     volumes:
       - .:/app

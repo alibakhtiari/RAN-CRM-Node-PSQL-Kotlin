@@ -191,7 +191,7 @@ docker-compose up -d
 docker-compose down
 
 # View logs
-docker-compose logs -f app
+docker-compose logs -f ran-crm-app
 
 # Rebuild after code changes
 docker-compose up --build --force-recreate

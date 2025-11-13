@@ -6,8 +6,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies based on NODE_ENV
+ARG NODE_ENV=production
+RUN if [ "$NODE_ENV" = "development" ]; then npm ci; else npm ci --only=production; fi
 
 # Production stage
 FROM node:22-alpine AS production
