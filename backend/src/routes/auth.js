@@ -10,15 +10,15 @@ const router = express.Router();
 // POST /auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
 
     const result = await pool.query(
-      'SELECT id, name, email, password_hash, is_admin FROM users WHERE email = $1',
-      [email]
+      'SELECT id, username, name, email, password_hash, is_admin FROM users WHERE username = $1',
+      [username]
     );
 
     if (result.rows.length === 0) {
@@ -33,7 +33,7 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, is_admin: user.is_admin },
+      { id: user.id, username: user.username, is_admin: user.is_admin },
       secret,
       { expiresIn }
     );
@@ -42,6 +42,7 @@ router.post('/login', async (req, res) => {
       token,
       user: {
         id: user.id,
+        username: user.username,
         name: user.name,
         email: user.email,
         is_admin: user.is_admin,

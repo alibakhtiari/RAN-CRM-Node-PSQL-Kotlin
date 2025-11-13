@@ -45,8 +45,12 @@ Contact & Call Log Sync CRM Backend API built with Node.js, Express, and Postgre
    ```
 
    **Default Login:**
-   - Email: `admin@example.com`
+   - Username: `admin`
    - Password: `admin123`
+
+   **Test Accounts:**
+   - Admin: `admin` / `admin123`
+   - User: `user` / `user123`
 
 The database schema and default admin user will be automatically initialized.
 

@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
     const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(
-      'SELECT id, name, email, is_admin, created_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+      'SELECT id, username, name, email, is_admin, created_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
       [limit, offset]
     );
 
@@ -33,15 +33,21 @@ router.get('/', async (req, res) => {
 // POST /users
 router.post('/', async (req, res) => {
   try {
-    const { name, email, password, is_admin = false } = req.body;
+    const { username, name, email, password, is_admin = false } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Name, email, and password are required' });
+    if (!username || !name || !email || !password) {
+      return res.status(400).json({ error: 'Username, name, email, and password are required' });
+    }
+
+    // Check if username already exists
+    const existingUsername = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    if (existingUsername.rows.length > 0) {
+      return res.status(409).json({ error: 'Username already exists' });
     }
 
     // Check if email already exists
-    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existingUser.rows.length > 0) {
+    const existingEmail = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existingEmail.rows.length > 0) {
       return res.status(409).json({ error: 'Email already exists' });
     }
 
@@ -50,8 +56,8 @@ router.post('/', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
     const result = await pool.query(
-      'INSERT INTO users (name, email, password_hash, is_admin) VALUES ($1, $2, $3, $4) RETURNING id, name, email, is_admin, created_at',
-      [name, email, passwordHash, is_admin]
+      'INSERT INTO users (username, name, email, password_hash, is_admin) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, is_admin, created_at',
+      [username, name, email, passwordHash, is_admin]
     );
 
     res.status(201).json({ user: result.rows[0] });
