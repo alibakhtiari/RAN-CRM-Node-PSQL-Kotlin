@@ -4,7 +4,7 @@ INSERT INTO users (username, name, password_hash, is_admin)
 VALUES (
   'admin',
   'Admin User',
-  '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj8lZQKQFQy',
+  '$2a$12$CXhuc9o2xuY2xQIJqDwd1.0D3zc.jk6Vrh6GQ6b4xeSVfgxOqBMKO',
   true
 )
 ON CONFLICT (username) DO NOTHING;
@@ -15,7 +15,7 @@ INSERT INTO users (username, name, password_hash, is_admin)
 VALUES (
   'user',
   'Normal User',
-  '$2a$12$8K1p/5w6YvH3qE7rN9sL0O1p2Q3rS4tU5vW6xY7zA8bC9dE0fG1',
+  '$2a$12$nXvyTzQ/c4qVhz80hfYOkuw0ZjFSbLX6ptbAFUN3ck/SCCxEyScqO',
   false
 )
 ON CONFLICT (username) DO NOTHING;
