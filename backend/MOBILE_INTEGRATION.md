@@ -4,7 +4,7 @@ This guide provides everything the Android/Kotlin team needs to integrate with t
 
 ## Authentication Flow
 
-1. **Login**: POST `/auth/login` with email/password
+1. **Login**: POST `/auth/login` with username/password
 2. **Receive Token**: Store JWT token from response
 3. **Use Token**: Include `Authorization: Bearer <token>` in all subsequent requests
 4. **Token Expiry**: Handle 403 responses by re-login
@@ -18,10 +18,10 @@ data class User(
     @PrimaryKey
     val id: String, // UUID
 
-    val name: String,
+    @ColumnInfo(name = "username")
+    val username: String,
 
-    @ColumnInfo(name = "email")
-    val email: String,
+    val name: String,
 
     @ColumnInfo(name = "is_admin")
     val isAdmin: Boolean,
@@ -127,7 +127,7 @@ data class SyncAudit(
 ### Login
 ```kotlin
 data class LoginRequest(
-    val email: String,
+    val username: String,
     val password: String
 )
 

@@ -17,7 +17,7 @@ router.post('/login', async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT id, username, name, email, password_hash, is_admin FROM users WHERE username = $1',
+      'SELECT id, username, name, password_hash, is_admin FROM users WHERE username = $1',
       [username]
     );
 
@@ -44,7 +44,6 @@ router.post('/login', async (req, res) => {
         id: user.id,
         username: user.username,
         name: user.name,
-        email: user.email,
         is_admin: user.is_admin,
       },
     });
@@ -58,7 +57,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, is_admin, created_at FROM users WHERE id = $1',
+      'SELECT id, username, name, is_admin, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 

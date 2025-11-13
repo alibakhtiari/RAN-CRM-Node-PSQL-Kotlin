@@ -324,10 +324,6 @@
                 <input type="text" id="user-name">
             </div>
             <div class="form-group">
-                <label for="user-email">Email:</label>
-                <input type="email" id="user-email">
-            </div>
-            <div class="form-group">
                 <label for="user-password">Password:</label>
                 <input type="password" id="user-password">
             </div>
@@ -480,7 +476,7 @@
                 userEl.className = 'data-item';
                 userEl.innerHTML = `
                     <div>
-                        <strong>${user.name}</strong> (${user.email})
+                        <strong>${user.username}</strong> - ${user.name}
                         ${user.is_admin ? '<span style="color: #dc2626;">Admin</span>' : ''}
                     </div>
                     <button class="btn btn-danger" onclick="deleteUser('${user.id}')">Delete</button>
@@ -595,14 +591,13 @@
         async function createUser() {
             const username = document.getElementById('user-username').value;
             const name = document.getElementById('user-name').value;
-            const email = document.getElementById('user-email').value;
             const password = document.getElementById('user-password').value;
             const isAdmin = document.getElementById('user-admin').checked;
 
             try {
                 const response = await apiRequest('/users', {
                     method: 'POST',
-                    body: JSON.stringify({ username, name, email, password, is_admin: isAdmin }),
+                    body: JSON.stringify({ username, name, password, is_admin: isAdmin }),
                 });
 
                 if (response.ok) {
@@ -611,7 +606,6 @@
                     // Clear form
                     document.getElementById('user-username').value = '';
                     document.getElementById('user-name').value = '';
-                    document.getElementById('user-email').value = '';
                     document.getElementById('user-password').value = '';
                     document.getElementById('user-admin').checked = false;
                 } else {
