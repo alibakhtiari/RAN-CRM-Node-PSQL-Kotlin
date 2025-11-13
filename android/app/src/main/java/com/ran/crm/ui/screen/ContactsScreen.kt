@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ContactsScreen(
     onContactClick: (Contact) -> Unit,
+    onCallLogsClick: () -> Unit,
     contactRepository: ContactRepository
 ) {
     var contacts by remember { mutableStateOf<List<Contact>>(emptyList()) }
@@ -54,7 +55,9 @@ fun ContactsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.contacts)) },
                 actions = {
-                    // Search functionality can be added here
+                    TextButton(onClick = onCallLogsClick) {
+                        Text(stringResource(R.string.call_logs))
+                    }
                 }
             )
         }

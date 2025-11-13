@@ -10,12 +10,23 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.ran.crm.ui.screen.LoginScreen
+import androidx.navigation.compose.rememberNavController
+import com.ran.crm.data.repository.AuthRepository
+import com.ran.crm.navigation.NavGraph
 import com.ran.crm.ui.theme.RANCRMTheme
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var database: CrmDatabase
+    private lateinit var authRepository: AuthRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Initialize dependencies
+        database = (application as CrmApplication).database
+        authRepository = AuthRepository()
+
         enableEdgeToEdge()
         setContent {
             RANCRMTheme {
@@ -23,7 +34,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    CrmApp()
+                    CrmApp(database, authRepository)
                 }
             }
         }
@@ -31,12 +42,14 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun CrmApp() {
-    // TODO: Implement navigation and main app structure
-    // For now, show login screen
-    LoginScreen(onLoginSuccess = {
-        // TODO: Navigate to main screen
-    })
+fun CrmApp(database: CrmDatabase, authRepository: AuthRepository) {
+    val navController = rememberNavController()
+
+    NavGraph(
+        navController = navController,
+        database = database,
+        authRepository = authRepository
+    )
 }
 
 @Preview(showBackground = true)
