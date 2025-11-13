@@ -13,14 +13,24 @@ router.use(authenticateToken);
 router.get('/', async (req, res) => {
   try {
     const { page, limit, offset } = getPaginationParams(req);
+    const { updated_since } = req.query;
 
-    const countResult = await pool.query('SELECT COUNT(*) FROM contacts');
+    let whereClause = '';
+    let params = [limit, offset];
+    let paramIndex = 3;
+
+    // Delta sync support
+    if (updated_since) {
+      whereClause = 'WHERE updated_at > $3';
+      params = [limit, offset, new Date(updated_since)];
+    }
+
+    const countQuery = `SELECT COUNT(*) FROM contacts ${whereClause}`;
+    const countResult = await pool.query(countQuery, updated_since ? [new Date(updated_since)] : []);
     const total = parseInt(countResult.rows[0].count);
 
-    const result = await pool.query(
-      'SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-      [limit, offset]
-    );
+    const dataQuery = `SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts ${whereClause} ORDER BY updated_at DESC LIMIT $${paramIndex - 2} OFFSET $${paramIndex - 1}`;
+    const result = await pool.query(dataQuery, params);
 
     res.json(getPaginationResult(result.rows, total, page, limit));
   } catch (error) {
@@ -132,6 +142,136 @@ router.post('/', async (req, res) => {
     }
   } catch (error) {
     console.error('Create contact error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /contacts/batch
+router.post('/batch', async (req, res) => {
+  try {
+    const { contacts } = req.body;
+
+    if (!Array.isArray(contacts) || contacts.length === 0) {
+      return res.status(400).json({ error: 'Contacts array is required and must not be empty' });
+    }
+
+    if (contacts.length > 100) {
+      return res.status(400).json({ error: 'Maximum 100 contacts per batch request' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const results = [];
+      const errors = [];
+
+      for (let i = 0; i < contacts.length; i++) {
+        const contact = contacts[i];
+        const { name, phone_raw, created_at } = contact;
+
+        try {
+          if (!name || !phone_raw) {
+            errors.push({
+              index: i,
+              error: 'Name and phone_raw are required',
+              contact
+            });
+            continue;
+          }
+
+          // Normalize phone number server-side
+          const normalizedPhone = normalizePhoneNumber(phone_raw);
+
+          // Check if a contact with this phone number already exists
+          const existingResult = await client.query(
+            'SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts WHERE phone_normalized = $1',
+            [normalizedPhone]
+          );
+
+          if (existingResult.rows.length > 0) {
+            const existing = existingResult.rows[0];
+            const incomingCreatedAt = new Date(created_at || new Date());
+
+            // If the existing contact belongs to the same user
+            if (existing.created_by === req.user.id) {
+              // Update the existing contact with newer data if incoming is newer
+              if (incomingCreatedAt >= new Date(existing.created_at)) {
+                const updateResult = await client.query(
+                  'UPDATE contacts SET name = $1, phone_raw = $2, updated_at = NOW() WHERE id = $3 RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
+                  [name, phone_raw, existing.id]
+                );
+                results.push({
+                  index: i,
+                  action: 'updated',
+                  contact: updateResult.rows[0]
+                });
+              } else {
+                // Return existing contact
+                results.push({
+                  index: i,
+                  action: 'existing',
+                  contact: existing
+                });
+              }
+            } else {
+              // Contact exists but belongs to different user
+              errors.push({
+                index: i,
+                error: 'Contact with this phone number already exists',
+                existing_contact: {
+                  id: existing.id,
+                  name: existing.name,
+                  phone_raw: existing.phone_raw,
+                  created_by: existing.created_by,
+                  created_at: existing.created_at
+                },
+                contact
+              });
+            }
+          } else {
+            // No existing contact found, create new one
+            const result = await client.query(
+              'INSERT INTO contacts (name, phone_raw, phone_normalized, created_by, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
+              [name, phone_raw, normalizedPhone, req.user.id, created_at || new Date()]
+            );
+            results.push({
+              index: i,
+              action: 'created',
+              contact: result.rows[0]
+            });
+          }
+        } catch (contactError) {
+          errors.push({
+            index: i,
+            error: contactError.message,
+            contact
+          });
+        }
+      }
+
+      await client.query('COMMIT');
+
+      res.status(200).json({
+        results,
+        errors,
+        summary: {
+          total: contacts.length,
+          created: results.filter(r => r.action === 'created').length,
+          updated: results.filter(r => r.action === 'updated').length,
+          existing: results.filter(r => r.action === 'existing').length,
+          errors: errors.length
+        }
+      });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Batch create contacts error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

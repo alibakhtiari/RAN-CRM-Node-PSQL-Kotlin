@@ -13,18 +13,29 @@ router.use(authenticateToken);
 router.get('/', async (req, res) => {
   try {
     const { page, limit, offset } = getPaginationParams(req);
+    const { updated_since } = req.query;
 
-    const countResult = await pool.query('SELECT COUNT(*) FROM call_logs');
+    let whereClause = '';
+    let params = [limit, offset];
+    let paramIndex = 3;
+
+    // Delta sync support
+    if (updated_since) {
+      whereClause = 'WHERE cl.timestamp > $3';
+      params = [limit, offset, new Date(updated_since)];
+    }
+
+    const countQuery = `SELECT COUNT(*) FROM call_logs cl ${whereClause}`;
+    const countResult = await pool.query(countQuery, updated_since ? [new Date(updated_since)] : []);
     const total = parseInt(countResult.rows[0].count);
 
-    const result = await pool.query(
-      `SELECT cl.id, cl.user_id, cl.contact_id, cl.direction, cl.duration_seconds, cl.timestamp,
+    const dataQuery = `SELECT cl.id, cl.user_id, cl.contact_id, cl.direction, cl.duration_seconds, cl.timestamp,
               c.name as contact_name, c.phone_raw as contact_phone
        FROM call_logs cl
        LEFT JOIN contacts c ON cl.contact_id = c.id
-       ORDER BY cl.timestamp DESC LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
+       ${whereClause}
+       ORDER BY cl.timestamp DESC LIMIT $${paramIndex - 2} OFFSET $${paramIndex - 1}`;
+    const result = await pool.query(dataQuery, params);
 
     res.json(getPaginationResult(result.rows, total, page, limit));
   } catch (error) {
