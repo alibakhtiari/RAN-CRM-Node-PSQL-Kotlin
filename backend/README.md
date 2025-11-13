@@ -39,7 +39,16 @@ Contact & Call Log Sync CRM Backend API built with Node.js, Express, and Postgre
    curl http://localhost:3000/health
    ```
 
-The database schema will be automatically initialized.
+4. **Access Admin Interface**
+   ```
+   http://localhost:3000/admin
+   ```
+
+   **Default Login:**
+   - Email: `admin@example.com`
+   - Password: `admin123`
+
+The database schema and default admin user will be automatically initialized.
 
 ### Manual Setup
 
