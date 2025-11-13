@@ -102,13 +102,20 @@ data class SyncAudit(
 
 ## Sync Logic Implementation
 
+### Phone Number Normalization
+- **Iranian Phone Support**: Handles multiple formats (09123456789, +989123456789, 00989123456789)
+- **E.164 Standardization**: All phone numbers normalized to international format (+989123456789)
+- **Automatic Cleaning**: Removes spaces, dashes, and parentheses before normalization
+
 ### Contact Sync
 - **No Duplicates**: Phone numbers are unique via `phone_normalized`
-- **Older Wins Rule**: Server compares `created_at` timestamps
+- **Cross-User Protection**: Different users cannot create contacts with same phone number
+- **Same User Updates**: Users can update their own existing contacts
+- **Older Wins Rule**: Server compares `created_at` timestamps for conflicts
 - **Client Behavior**:
-  - Pre-normalize phone numbers using libphonenumber
+  - Pre-normalize phone numbers using libphonenumber with Iran region support
   - Send all contacts with `created_at` timestamps
-  - Handle server responses (created/updated/existing)
+  - Handle server responses (created/updated/existing/conflict)
   - Update local database with server response
 
 ### Call Log Sync
@@ -205,6 +212,12 @@ data class PaginationInfo(
 ```kotlin
 data class ErrorResponse(
     val error: String
+)
+
+// Special case for contact conflicts (409)
+data class ConflictErrorResponse(
+    val error: String,
+    val existing_contact: Contact // Details of the conflicting contact
 )
 ```
 
@@ -309,13 +322,31 @@ val apiService = retrofit.create(CrmApiService::class.java)
 suspend fun syncContact(contact: Contact): Contact {
     return try {
         val response = apiService.createContact(contact.toCreateRequest())
-        // Server handled conflict, return merged result
+        // Contact created successfully
         response.contact
     } catch (e: HttpException) {
-        if (e.code() == 409) {
-            // Fetch existing from server
-            val existing = apiService.getContactByPhone(contact.phoneNormalized)
-            existing.contact
+        when (e.code()) {
+            409 -> {
+                // Contact already exists (cross-user duplicate)
+                // This should not happen in normal sync - handle as error
+                throw IllegalStateException("Contact already exists for another user")
+            }
+            else -> throw e
+        }
+    }
+}
+
+// For handling existing contacts (same user updates)
+suspend fun updateOrCreateContact(contact: Contact): Contact {
+    return try {
+        val response = apiService.createContact(contact.toCreateRequest())
+        response.contact // Created or updated
+    } catch (e: HttpException) {
+        if (e.code() == 200) {
+            // Server returned existing contact (same user)
+            // Parse the response to get the contact data
+            // This happens when same user tries to create duplicate
+            parseContactFromResponse(e.response()?.body()?.string())
         } else {
             throw e
         }
