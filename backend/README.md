@@ -14,9 +14,9 @@ Contact & Call Log Sync CRM Backend API built with Node.js, Express, and Postgre
 
 ## Tech Stack
 
-- **Runtime**: Node.js 18+
+- **Runtime**: Node.js 22+ (LTS)
 - **Framework**: Express.js
-- **Database**: PostgreSQL 15+
+- **Database**: PostgreSQL 17+
 - **Authentication**: JWT
 - **Container**: Docker
 
@@ -253,11 +253,141 @@ npm run build
 4. Configure monitoring and logging
 5. Use HTTPS with proper SSL certificates
 
-## Mobile Integration
+## Mobile Team Integration Guide
 
-The API is designed for Android app sync:
-- Use `Authorization: Bearer <token>` header
-- Handle pagination for large datasets
-- Implement conflict resolution on client side
-- Batch upload call logs for efficiency
-- Monitor sync audit logs for debugging
+### Authentication Flow
+1. **Login**: POST `/auth/login` with email/password
+2. **Receive Token**: Store JWT token from response
+3. **Use Token**: Include `Authorization: Bearer <token>` in all subsequent requests
+4. **Token Expiry**: Handle 403 responses by re-login
+
+### API Field Types (for Room/Kotlin Models)
+
+#### User
+```kotlin
+data class User(
+    val id: String, // UUID
+    val name: String,
+    val email: String,
+    val is_admin: Boolean,
+    val created_at: String // ISO 8601 timestamp
+)
+```
+
+#### Contact
+```kotlin
+data class Contact(
+    val id: String, // UUID
+    val name: String,
+    val phone_raw: String,
+    val phone_normalized: String,
+    val created_by: String, // UUID (User ID)
+    val created_at: String, // ISO 8601 timestamp
+    val updated_at: String  // ISO 8601 timestamp
+)
+```
+
+#### Call Log
+```kotlin
+data class CallLog(
+    val id: String, // UUID
+    val user_id: String, // UUID
+    val contact_id: String?, // UUID or null
+    val direction: String, // "incoming" | "outgoing" | "missed"
+    val duration_seconds: Int,
+    val timestamp: String // ISO 8601 timestamp
+)
+```
+
+#### Sync Audit
+```kotlin
+data class SyncAudit(
+    val id: String, // UUID
+    val user_id: String, // UUID
+    val synced_contacts: Int,
+    val synced_calls: Int,
+    val created_at: String // ISO 8601 timestamp
+)
+```
+
+### Sync Logic Implementation
+
+#### Contact Sync
+- **No Duplicates**: Phone numbers are unique via `phone_normalized`
+- **Older Wins Rule**: Server compares `created_at` timestamps
+- **Client Behavior**:
+  - Pre-normalize phone numbers using libphonenumber
+  - Send all contacts with `created_at` timestamps
+  - Handle server responses (created/updated/existing)
+  - Update local database with server response
+
+#### Call Log Sync
+- **Upload Only New**: Send only calls newer than last sync
+- **Batch Upload**: Group calls in arrays (max 1000 per request)
+- **Link to Contacts**: Use `contact_id` if available, or `phone_normalized` for matching
+- **Server Matching**: If no `contact_id`, server finds contact by `phone_normalized`
+
+#### Pagination Handling
+- Use `page` and `limit` parameters for all list requests
+- Handle `pagination` object in responses
+- Implement infinite scroll or load-more patterns
+
+### Docker Deployment for Mobile Testing
+
+#### Local Development
+```bash
+# Start full stack
+docker-compose up -d
+
+# API available at http://localhost:3000
+# Database at localhost:5432
+```
+
+#### Production Container
+```bash
+# Build production image
+docker build -t ran-crm-backend .
+
+# Run with environment variables
+docker run -d \
+  --name ran-crm-backend \
+  -p 3000:3000 \
+  -e DB_HOST=your-db-host \
+  -e DB_NAME=ran_crm \
+  -e DB_USER=your-user \
+  -e DB_PASSWORD=your-password \
+  -e JWT_SECRET=your-secret-key \
+  ran-crm-backend
+```
+
+#### Docker Compose Production
+Create `docker-compose.prod.yml`:
+```yaml
+version: '3.8'
+services:
+  app:
+    image: ran-crm-backend:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=prod-db-host
+      - DB_NAME=ran_crm
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=production
+    restart: unless-stopped
+```
+
+### Error Handling
+- **401**: Unauthorized - re-login required
+- **403**: Forbidden - check permissions
+- **409**: Conflict - handle duplicate data
+- **422**: Validation error - check request format
+- **500**: Server error - retry with backoff
+
+### Rate Limiting & Performance
+- Batch operations for bulk data
+- Pagination for large datasets
+- Connection pooling handles concurrent requests
+- Indexes optimize query performance
