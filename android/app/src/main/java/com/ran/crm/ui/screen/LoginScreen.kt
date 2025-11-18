@@ -3,6 +3,7 @@ package com.ran.crm.ui.screen
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,6 +97,8 @@ fun LoginScreen(
             enabled = !isLoading && username.isNotBlank() && password.isNotBlank()
         ) {
             if (isLoading) {
+                // This CircularProgressIndicator is inside the Button's composable lambda
+                // which is a valid place for it.
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     color = MaterialTheme.colorScheme.onPrimary

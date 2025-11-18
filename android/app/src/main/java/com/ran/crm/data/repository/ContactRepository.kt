@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.*
+import kotlin.time.ExperimentalTime
 
 class ContactRepository(
     private val contactDao: ContactDao
@@ -36,6 +37,7 @@ class ContactRepository(
     suspend fun getContactsUpdatedSince(since: String): List<Contact> =
         contactDao.getContactsUpdatedSince(since)
 
+    @OptIn(ExperimentalTime::class)
     suspend fun syncContacts() {
         // Get local changes since last sync
         val lastSync = getLastSyncTime()
@@ -116,6 +118,7 @@ class ContactRepository(
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     suspend fun createContact(name: String, phoneRaw: String, phoneNormalized: String): Contact? {
         val request = CreateContactRequest(
             name = name,

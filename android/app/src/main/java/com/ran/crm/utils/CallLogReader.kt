@@ -2,12 +2,13 @@ package com.ran.crm.utils
 
 import android.content.ContentResolver
 import android.content.Context
-import android.provider.CallLog
+import android.provider.CallLog as SystemCallLog
 import com.ran.crm.data.local.entity.CallLog
 import com.ran.crm.data.repository.CallLogRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.*
+import kotlin.time.ExperimentalTime
 
 class CallLogReader(
     private val context: Context,
@@ -51,35 +52,36 @@ class CallLogReader(
         ImportResult(imported, skipped, errors)
     }
 
+    @OptIn(ExperimentalTime::class)
     private fun getDeviceCallLogs(contentResolver: ContentResolver): List<CallLog> {
         val callLogs = mutableListOf<CallLog>()
 
         val projection = arrayOf(
-            CallLog.Calls._ID,
-            CallLog.Calls.NUMBER,
-            CallLog.Calls.DATE,
-            CallLog.Calls.DURATION,
-            CallLog.Calls.TYPE
+            SystemCallLog.Calls._ID,
+            SystemCallLog.Calls.NUMBER,
+            SystemCallLog.Calls.DATE,
+            SystemCallLog.Calls.DURATION,
+            SystemCallLog.Calls.TYPE
         )
 
         // Get calls from last 30 days to avoid importing too much historical data
         val thirtyDaysAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000)
-        val selection = "${CallLog.Calls.DATE} > ?"
+        val selection = "${SystemCallLog.Calls.DATE} > ?"
         val selectionArgs = arrayOf(thirtyDaysAgo.toString())
 
         val cursor = contentResolver.query(
-            CallLog.Calls.CONTENT_URI,
+            SystemCallLog.Calls.CONTENT_URI,
             projection,
             selection,
             selectionArgs,
-            "${CallLog.Calls.DATE} DESC"
+            "${SystemCallLog.Calls.DATE} DESC"
         )
 
         cursor?.use { c ->
-            val numberIndex = c.getColumnIndex(CallLog.Calls.NUMBER)
-            val dateIndex = c.getColumnIndex(CallLog.Calls.DATE)
-            val durationIndex = c.getColumnIndex(CallLog.Calls.DURATION)
-            val typeIndex = c.getColumnIndex(CallLog.Calls.TYPE)
+            val numberIndex = c.getColumnIndex(SystemCallLog.Calls.NUMBER)
+            val dateIndex = c.getColumnIndex(SystemCallLog.Calls.DATE)
+            val durationIndex = c.getColumnIndex(SystemCallLog.Calls.DURATION)
+            val typeIndex = c.getColumnIndex(SystemCallLog.Calls.TYPE)
 
             while (c.moveToNext()) {
                 try {
@@ -93,9 +95,9 @@ class CallLogReader(
 
                     // Convert call type
                     val direction = when (type) {
-                        CallLog.Calls.INCOMING_TYPE -> "incoming"
-                        CallLog.Calls.OUTGOING_TYPE -> "outgoing"
-                        CallLog.Calls.MISSED_TYPE -> "missed"
+                        SystemCallLog.Calls.INCOMING_TYPE -> "incoming"
+                        SystemCallLog.Calls.OUTGOING_TYPE -> "outgoing"
+                        SystemCallLog.Calls.MISSED_TYPE -> "missed"
                         else -> continue
                     }
 

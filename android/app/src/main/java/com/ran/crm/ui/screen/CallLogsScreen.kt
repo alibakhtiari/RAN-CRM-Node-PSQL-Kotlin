@@ -17,6 +17,7 @@ import com.ran.crm.data.repository.CallLogRepository
 import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +85,7 @@ fun CallLogsScreen(
     }
 }
 
+@OptIn(ExperimentalTime::class)
 @Composable
 fun GlobalCallLogItem(callLog: CallLog) {
     val dateFormat = remember { SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()) }

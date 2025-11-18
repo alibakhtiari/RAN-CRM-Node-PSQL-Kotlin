@@ -9,7 +9,9 @@ import com.ran.crm.data.repository.ContactRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.*
+import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 class ContactImporter(
     private val context: Context,
     private val contactRepository: ContactRepository

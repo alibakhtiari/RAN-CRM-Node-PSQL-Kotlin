@@ -14,6 +14,7 @@ import androidx.navigation.compose.rememberNavController
 import com.ran.crm.data.repository.AuthRepository
 import com.ran.crm.navigation.NavGraph
 import com.ran.crm.ui.theme.RANCRMTheme
+import com.ran.crm.data.local.CrmDatabase
 
 class MainActivity : ComponentActivity() {
 

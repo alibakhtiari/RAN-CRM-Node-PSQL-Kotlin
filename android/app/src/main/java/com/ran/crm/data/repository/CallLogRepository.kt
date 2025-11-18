@@ -8,6 +8,7 @@ import com.ran.crm.data.remote.model.CallUploadRequest
 import com.ran.crm.data.remote.safeApiCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlin.time.ExperimentalTime
 
 class CallLogRepository(
     private val callLogDao: CallLogDao
@@ -31,6 +32,7 @@ class CallLogRepository(
     suspend fun getCallLogsUpdatedSince(since: String): List<CallLog> =
         callLogDao.getCallLogsUpdatedSince(since)
 
+    @OptIn(ExperimentalTime::class)
     suspend fun syncCallLogs() {
         // Get local changes since last sync
         val lastSync = getLastSyncTime()

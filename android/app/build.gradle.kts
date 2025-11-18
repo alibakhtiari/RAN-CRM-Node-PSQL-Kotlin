@@ -3,16 +3,17 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.kapt")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("androidx.room")
 }
 
 android {
     namespace = "com.ran.crm"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.ran.crm"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -32,8 +33,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+    kotlin {
+        jvmToolchain(21)
     }
     buildFeatures {
         compose = true
@@ -65,6 +69,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
 
+    implementation("com.google.android.material:material:1.13.0")
+
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     kapt(libs.androidx.room.compiler)
@@ -84,9 +90,14 @@ dependencies {
     testImplementation(libs.mockk)
 
     androidTestImplementation(libs.androidx.test.ext.junit)
-    androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs["androidx.compose.ui.test.junit4"])
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs["androidx.compose.ui.test.manifest"])
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+room {
+    // The schemas directory contains a schema file for each version of the Room database.
+    // This is required to enable Room auto migrations.
+    schemaDirectory("$projectDir/schemas")
 }
