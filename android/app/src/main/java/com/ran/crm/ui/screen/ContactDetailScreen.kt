@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material3.*
@@ -33,12 +34,14 @@ import java.util.*
 fun ContactDetailScreen(
     contactId: String,
     onBackClick: () -> Unit,
+    onEditClick: (String) -> Unit,
     contactRepository: ContactRepository,
     callLogRepository: CallLogRepository
 ) {
     var contact by remember { mutableStateOf<Contact?>(null) }
     var callLogs by remember { mutableStateOf<List<CallLog>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -88,18 +91,46 @@ fun ContactDetailScreen(
                                 data = Uri.parse("sms:${it.phoneRaw}")
                             }
                             context.startActivity(intent)
-                        }) {
+                        })
+ {
                             Icon(
                                 imageVector = Icons.Filled.Message,
                                 contentDescription = stringResource(R.string.message)
                             )
                         }
                         IconButton(onClick = {
-                            // TODO: Implement Edit Contact screen
+                            try {
+                                // WhatsApp with phone number
+                                val phoneNumber = it.phoneNormalized.replace("+", "")
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    data = Uri.parse("https://wa.me/$phoneNumber")
+                                }
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                // WhatsApp not installed or error
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Message,
+                                contentDescription = "WhatsApp",
+                                tint = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                        IconButton(onClick = {
+                            onEditClick(contactId)
                         }) {
                             Icon(
                                 imageVector = Icons.Filled.Edit,
                                 contentDescription = "Edit"
+                            )
+                        }
+                        IconButton(onClick = {
+                            showDeleteDialog = true
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = "Delete",
+                                tint = MaterialTheme.colorScheme.error
                             )
                         }
                     }
@@ -185,6 +216,38 @@ fun ContactDetailScreen(
                 }
             }
         }
+    }
+    
+    // Delete Confirmation Dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Contact") },
+            text = { Text("Are you sure you want to delete ${contact?.name}? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            contact?.let {
+                                contactRepository.deleteContact(it)
+                                showDeleteDialog = false
+                                onBackClick()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

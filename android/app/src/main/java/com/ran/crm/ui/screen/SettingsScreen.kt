@@ -83,9 +83,9 @@ fun SettingsScreen(
             
             Divider(modifier = Modifier.padding(vertical = 16.dp))
             
-            // Sync Logs (Placeholder)
+            // Sync Logs
             Button(
-                onClick = { /* TODO: Navigate to Sync Logs */ },
+                onClick = { navController.navigate("sync_logs") },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("View Sync Logs")

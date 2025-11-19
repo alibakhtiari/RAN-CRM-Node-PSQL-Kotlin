@@ -46,6 +46,9 @@ fun NavGraph(
                 onSettingsClick = {
                     navController.navigate(Screen.Settings.route)
                 },
+                onAddContactClick = {
+                    navController.navigate(Screen.AddEditContact.createRoute())
+                },
                 contactRepository = contactRepository
             )
         }
@@ -55,6 +58,9 @@ fun NavGraph(
             ContactDetailScreen(
                 contactId = contactId,
                 onBackClick = { navController.popBackStack() },
+                onEditClick = { id ->
+                    navController.navigate(Screen.AddEditContact.createRoute(id))
+                },
                 contactRepository = contactRepository,
                 callLogRepository = callLogRepository
             )
@@ -71,6 +77,22 @@ fun NavGraph(
             SettingsScreen(
                 navController = navController,
                 preferenceManager = preferenceManager
+            )
+        }
+
+        composable(Screen.AddEditContact.route) { backStackEntry ->
+            val contactId = backStackEntry.arguments?.getString("contactId")
+            AddEditContactScreen(
+                contactId = contactId,
+                onBackClick = { navController.popBackStack() },
+                contactRepository = contactRepository
+            )
+        }
+
+        composable(Screen.SyncLogs.route) {
+            SyncLogsScreen(
+                onBackClick = { navController.popBackStack() },
+                database = database
             )
         }
     }

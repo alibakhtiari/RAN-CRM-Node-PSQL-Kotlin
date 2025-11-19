@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Settings
@@ -17,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.ran.crm.R
 import com.ran.crm.data.local.entity.Contact
 import com.ran.crm.data.repository.ContactRepository
+import com.ran.crm.utils.T9Utils
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -26,6 +28,7 @@ fun ContactsScreen(
     onContactClick: (Contact) -> Unit,
     onCallLogsClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onAddContactClick: () -> Unit,
     contactRepository: ContactRepository
 ) {
     var contacts by remember { mutableStateOf<List<Contact>>(emptyList()) }
@@ -46,7 +49,8 @@ fun ContactsScreen(
             contacts
         } else {
             contacts.filter { contact ->
-                contact.name.contains(searchQuery, ignoreCase = true) ||
+                // Advanced search: T9 + fuzzy matching
+                T9Utils.advancedSearch(contact.name, searchQuery) ||
                 contact.phoneRaw.contains(searchQuery)
             }
         }
@@ -68,6 +72,14 @@ fun ContactsScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddContactClick) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = "Add Contact"
+                )
+            }
         }
     ) { padding ->
         Column(

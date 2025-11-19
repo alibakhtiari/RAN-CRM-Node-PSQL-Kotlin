@@ -1,6 +1,7 @@
 package com.ran.crm.data.local.dao
 
 import androidx.room.*
+import androidx.paging.PagingSource
 import com.ran.crm.data.local.entity.Contact
 import kotlinx.coroutines.flow.Flow
 
@@ -10,8 +11,14 @@ interface ContactDao {
     @Query("SELECT * FROM contacts ORDER BY name ASC")
     fun getAllContacts(): Flow<List<Contact>>
 
+    @Query("SELECT * FROM contacts ORDER BY name ASC")
+    fun getAllContactsPaged(): PagingSource<Int, Contact>
+
     @Query("SELECT * FROM contacts WHERE name LIKE '%' || :query || '%' OR phone_raw LIKE '%' || :query || '%' ORDER BY name ASC")
     fun searchContacts(query: String): Flow<List<Contact>>
+
+    @Query("SELECT * FROM contacts WHERE name LIKE '%' || :query || '%' OR phone_raw LIKE '%' || :query || '%' ORDER BY name ASC")
+    fun searchContactsPaged(query: String): PagingSource<Int, Contact>
 
     @Query("SELECT * FROM contacts WHERE updated_at > :since ORDER BY updated_at ASC")
     suspend fun getContactsUpdatedSince(since: String): List<Contact>

@@ -8,4 +8,12 @@ sealed class Screen(val route: String) {
     }
     object CallLogs : Screen("call_logs")
     object Settings : Screen("settings")
+    object AddEditContact : Screen("add_edit_contact?contactId={contactId}") {
+        fun createRoute(contactId: String? = null) = if (contactId != null) {
+            "add_edit_contact?contactId=$contactId"
+        } else {
+            "add_edit_contact"
+        }
+    }
+    object SyncLogs : Screen("sync_logs")
 }

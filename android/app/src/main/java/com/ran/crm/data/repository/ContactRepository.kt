@@ -7,6 +7,9 @@ import com.ran.crm.data.remote.model.BatchContactRequest
 import com.ran.crm.data.remote.model.BatchContactData
 import com.ran.crm.data.remote.model.CreateContactRequest
 import com.ran.crm.data.remote.safeApiCall
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.util.*
@@ -20,7 +23,29 @@ class ContactRepository(
 
     fun getAllContacts(): Flow<List<Contact>> = contactDao.getAllContacts()
 
+    fun getAllContactsPaged(): Flow<PagingData<Contact>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 20,
+                enablePlaceholders = false,
+                prefetchDistance = 5
+            ),
+            pagingSourceFactory = { contactDao.getAllContactsPaged() }
+        ).flow
+    }
+
     fun searchContacts(query: String): Flow<List<Contact>> = contactDao.searchContacts(query)
+
+    fun searchContactsPaged(query: String): Flow<PagingData<Contact>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 20,
+                enablePlaceholders = false,
+                prefetchDistance = 5
+            ),
+            pagingSourceFactory = { contactDao.searchContactsPaged(query) }
+        ).flow
+    }
 
     suspend fun getContactById(id: String): Contact? = contactDao.getContactById(id)
 

@@ -87,6 +87,11 @@ dependencies {
 
     implementation(libs.libphonenumber)
 
+    // Paging 3
+    implementation("androidx.paging:paging-runtime:3.3.5")
+    implementation("androidx.paging:paging-compose:3.3.5")
+    implementation("androidx.room:room-paging:2.7.0")
+
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
 
