@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
 
     implementation("com.google.android.material:material:1.13.0")
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

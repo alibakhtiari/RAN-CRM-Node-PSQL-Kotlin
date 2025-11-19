@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.ran.crm.R
 import com.ran.crm.data.repository.AuthRepository
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun LoginScreen(
@@ -26,6 +27,7 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -85,7 +87,7 @@ fun LoginScreen(
                                 onLoginSuccess()
                             },
                             onFailure = { exception ->
-                                errorMessage = exception.message ?: stringResource(R.string.login_failed)
+                                errorMessage = exception.message ?: context.getString(R.string.login_failed)
                             }
                         )
 

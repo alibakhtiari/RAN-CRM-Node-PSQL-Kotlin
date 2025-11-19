@@ -14,10 +14,11 @@ import com.ran.crm.ui.screen.*
 fun NavGraph(
     navController: NavHostController,
     database: CrmDatabase,
-    authRepository: AuthRepository
+    authRepository: AuthRepository,
+    preferenceManager: com.ran.crm.data.local.PreferenceManager
 ) {
-    val contactRepository = ContactRepository(database.contactDao())
-    val callLogRepository = CallLogRepository(database.callLogDao())
+    val contactRepository = ContactRepository(database.contactDao(), preferenceManager)
+    val callLogRepository = CallLogRepository(database.callLogDao(), preferenceManager)
 
     NavHost(
         navController = navController,
@@ -42,6 +43,9 @@ fun NavGraph(
                 onCallLogsClick = {
                     navController.navigate(Screen.CallLogs.route)
                 },
+                onSettingsClick = {
+                    navController.navigate(Screen.Settings.route)
+                },
                 contactRepository = contactRepository
             )
         }
@@ -63,7 +67,11 @@ fun NavGraph(
             )
         }
 
-        // TODO: Add Settings screen
-        // composable(Screen.Settings.route) { ... }
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                navController = navController,
+                preferenceManager = preferenceManager
+            )
+        }
     }
 }

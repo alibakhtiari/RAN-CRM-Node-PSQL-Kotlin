@@ -3,10 +3,11 @@ package com.ran.crm.ui.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +25,7 @@ import kotlinx.coroutines.launch
 fun ContactsScreen(
     onContactClick: (Contact) -> Unit,
     onCallLogsClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     contactRepository: ContactRepository
 ) {
     var contacts by remember { mutableStateOf<List<Contact>>(emptyList()) }
@@ -57,6 +59,12 @@ fun ContactsScreen(
                 actions = {
                     TextButton(onClick = onCallLogsClick) {
                         Text(stringResource(R.string.call_logs))
+                    }
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings"
+                        )
                     }
                 }
             )
@@ -98,7 +106,8 @@ fun ContactsScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(filteredContacts) { contact ->
+                    items(filteredContacts.size) { index ->
+                        val contact = filteredContacts[index]
                         ContactItem(
                             contact = contact,
                             onContactClick = onContactClick,
@@ -152,13 +161,13 @@ fun ContactItem(
             Row {
                 IconButton(onClick = onCallClick) {
                     Icon(
-                        imageVector = Icons.Default.Call,
+                        imageVector = Icons.Filled.Call,
                         contentDescription = stringResource(R.string.call)
                     )
                 }
                 IconButton(onClick = onMessageClick) {
                     Icon(
-                        imageVector = Icons.Default.Message,
+                        imageVector = Icons.Filled.Message,
                         contentDescription = stringResource(R.string.message)
                     )
                 }

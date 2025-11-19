@@ -42,4 +42,10 @@ interface CrmApiService {
 
     @POST("calls")
     suspend fun uploadCalls(@Body request: CallUploadRequest): CallUploadResponse
+
+    @PUT("contacts/{id}")
+    suspend fun updateContact(@Path("id") id: String, @Body contact: CreateContactRequest): ContactResponse
+
+    @DELETE("contacts/{id}")
+    suspend fun deleteContact(@Path("id") id: String): retrofit2.Response<Unit>
 }

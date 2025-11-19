@@ -7,8 +7,8 @@ import com.ran.crm.data.local.entity.CallLog
 import com.ran.crm.data.repository.CallLogRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.time.ExperimentalTime
 
 class CallLogReader(
     private val context: Context,
@@ -52,7 +52,7 @@ class CallLogReader(
         ImportResult(imported, skipped, errors)
     }
 
-    @OptIn(ExperimentalTime::class)
+
     private fun getDeviceCallLogs(contentResolver: ContentResolver): List<CallLog> {
         val callLogs = mutableListOf<CallLog>()
 
@@ -110,7 +110,7 @@ class CallLogReader(
                         contactId = null, // Will be matched later
                         direction = direction,
                         durationSeconds = duration.toInt(),
-                        timestamp = kotlinx.datetime.Instant.fromEpochMilliseconds(timestamp).toString()
+                        timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date(timestamp))
                     )
 
                     callLogs.add(callLog)

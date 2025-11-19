@@ -9,9 +9,10 @@ import com.ran.crm.data.repository.ContactRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.*
-import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalTime::class)
+import java.text.SimpleDateFormat
+
+
 class ContactImporter(
     private val context: Context,
     private val contactRepository: ContactRepository
@@ -45,8 +46,8 @@ class ContactImporter(
                             phoneRaw = deviceContact.phoneRaw,
                             phoneNormalized = deviceContact.phoneNormalized,
                             createdBy = "", // Will be set when syncing
-                            createdAt = kotlinx.datetime.Clock.System.now().toString(),
-                            updatedAt = kotlinx.datetime.Clock.System.now().toString()
+                            createdAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date()),
+                            updatedAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date())
                         )
 
                         contactRepository.insertContact(contact)

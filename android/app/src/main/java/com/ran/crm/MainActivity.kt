@@ -20,6 +20,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var database: CrmDatabase
     private lateinit var authRepository: AuthRepository
+    private lateinit var preferenceManager: com.ran.crm.data.local.PreferenceManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
         // Initialize dependencies
         database = (application as CrmApplication).database
         authRepository = AuthRepository()
+        preferenceManager = com.ran.crm.data.local.PreferenceManager(this)
 
         enableEdgeToEdge()
         setContent {
@@ -35,7 +37,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    CrmApp(database, authRepository)
+                    CrmApp(database, authRepository, preferenceManager)
                 }
             }
         }
@@ -43,13 +45,18 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun CrmApp(database: CrmDatabase, authRepository: AuthRepository) {
+fun CrmApp(
+    database: CrmDatabase,
+    authRepository: AuthRepository,
+    preferenceManager: com.ran.crm.data.local.PreferenceManager
+) {
     val navController = rememberNavController()
 
     NavGraph(
         navController = navController,
         database = database,
-        authRepository = authRepository
+        authRepository = authRepository,
+        preferenceManager = preferenceManager
     )
 }
 

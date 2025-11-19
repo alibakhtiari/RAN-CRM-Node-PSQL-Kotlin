@@ -3,10 +3,11 @@ package com.ran.crm.ui.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
 import com.ran.crm.R
 import com.ran.crm.data.local.entity.CallLog
 import com.ran.crm.data.local.entity.Contact
@@ -23,7 +27,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +41,7 @@ fun ContactDetailScreen(
     var isLoading by remember { mutableStateOf(true) }
 
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     LaunchedEffect(contactId) {
         // Load contact details
@@ -45,7 +49,7 @@ fun ContactDetailScreen(
 
         // Load call logs for this contact
         if (contact != null) {
-            callLogRepository.getCallLogsForContact(contactId).collectLatest { logs ->
+            callLogRepository.getCallLogsForContact(contactId).collectLatest<List<CallLog>> { logs ->
                 callLogs = logs
                 isLoading = false
             }
@@ -67,22 +71,35 @@ fun ContactDetailScreen(
                     }
                 },
                 actions = {
-                    // Contact actions
                     contact?.let {
                         IconButton(onClick = {
-                            // Handle call action
+                            val intent = Intent(Intent.ACTION_DIAL).apply {
+                                data = Uri.parse("tel:${it.phoneRaw}")
+                            }
+                            context.startActivity(intent)
                         }) {
                             Icon(
-                                imageVector = Icons.Default.Call,
+                                imageVector = Icons.Filled.Call,
                                 contentDescription = stringResource(R.string.call)
                             )
                         }
                         IconButton(onClick = {
-                            // Handle message action
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                data = Uri.parse("sms:${it.phoneRaw}")
+                            }
+                            context.startActivity(intent)
                         }) {
                             Icon(
-                                imageVector = Icons.Default.Message,
+                                imageVector = Icons.Filled.Message,
                                 contentDescription = stringResource(R.string.message)
+                            )
+                        }
+                        IconButton(onClick = {
+                            // TODO: Implement Edit Contact screen
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Edit,
+                                contentDescription = "Edit"
                             )
                         }
                     }
@@ -149,8 +166,8 @@ fun ContactDetailScreen(
                         LazyColumn(
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            items(callLogs) { callLog ->
-                                CallLogItem(callLog = callLog)
+                            items(callLogs.size) { index ->
+                                CallLogItem(callLog = callLogs[index])
                             }
                         }
                     }
@@ -171,14 +188,19 @@ fun ContactDetailScreen(
     }
 }
 
-@OptIn(ExperimentalTime::class)
 @Composable
 fun CallLogItem(callLog: CallLog) {
     val dateFormat = remember { SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()) }
     val timestamp = remember(callLog.timestamp) {
         try {
-            val instant = kotlinx.datetime.Instant.parse(callLog.timestamp)
-            dateFormat.format(Date(instant.toEpochMilliseconds()))
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+            inputFormat.timeZone = TimeZone.getTimeZone("UTC")
+            val date = inputFormat.parse(callLog.timestamp)
+            if (date != null) {
+                dateFormat.format(date)
+            } else {
+                callLog.timestamp
+            }
         } catch (e: Exception) {
             callLog.timestamp
         }

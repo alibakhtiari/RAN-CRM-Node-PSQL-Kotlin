@@ -2,7 +2,6 @@ package com.ran.crm.ui.screen
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -17,7 +16,6 @@ import com.ran.crm.data.repository.CallLogRepository
 import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +27,7 @@ fun CallLogsScreen(
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
-        callLogRepository.getAllCallLogs().collectLatest { logs ->
+        callLogRepository.getAllCallLogs().collectLatest<List<CallLog>> { logs ->
             callLogs = logs
             isLoading = false
         }
@@ -76,8 +74,8 @@ fun CallLogsScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(callLogs) { callLog ->
-                        GlobalCallLogItem(callLog = callLog)
+                    items(callLogs.size) { index ->
+                        GlobalCallLogItem(callLog = callLogs[index])
                     }
                 }
             }
@@ -85,14 +83,19 @@ fun CallLogsScreen(
     }
 }
 
-@OptIn(ExperimentalTime::class)
 @Composable
 fun GlobalCallLogItem(callLog: CallLog) {
     val dateFormat = remember { SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()) }
     val timestamp = remember(callLog.timestamp) {
         try {
-            val instant = kotlinx.datetime.Instant.parse(callLog.timestamp)
-            dateFormat.format(Date(instant.toEpochMilliseconds()))
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+            inputFormat.timeZone = TimeZone.getTimeZone("UTC")
+            val date = inputFormat.parse(callLog.timestamp)
+            if (date != null) {
+                dateFormat.format(date)
+            } else {
+                callLog.timestamp
+            }
         } catch (e: Exception) {
             callLog.timestamp
         }

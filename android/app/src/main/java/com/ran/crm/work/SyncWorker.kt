@@ -19,15 +19,35 @@ class SyncWorker(
         try {
             // Get repositories
             val database = CrmDatabase.getDatabase(applicationContext)
-            val contactRepository = ContactRepository(database.contactDao())
-            val callLogRepository = CallLogRepository(database.callLogDao())
+            val preferenceManager = com.ran.crm.data.local.PreferenceManager(applicationContext)
+            val contactRepository = ContactRepository(database.contactDao(), preferenceManager)
+            val callLogRepository = CallLogRepository(database.callLogDao(), preferenceManager)
+            val syncAuditDao = database.syncAuditDao()
 
-            // Perform sync operations
-            contactRepository.syncContacts()
-            callLogRepository.syncCallLogs()
+            val startTime = System.currentTimeMillis()
+            var status = "SUCCESS"
+            var message = "Sync completed successfully"
 
-            // Record sync audit
-            // TODO: Implement sync audit logging
+            try {
+                // Perform sync operations
+                contactRepository.syncContacts()
+                callLogRepository.syncCallLogs()
+            } catch (e: Exception) {
+                status = "FAILURE"
+                message = e.message ?: "Unknown error"
+                throw e
+            } finally {
+                // Record sync audit
+                val endTime = System.currentTimeMillis()
+                val audit = com.ran.crm.data.local.entity.SyncAudit(
+                    id = java.util.UUID.randomUUID().toString(),
+                    userId = "", // TODO: Get actual user ID
+                    syncedContacts = 0, // TODO: Track actual count
+                    syncedCalls = 0, // TODO: Track actual count
+                    createdAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date())
+                )
+                syncAuditDao.insertSyncAudit(audit)
+            }
 
             Result.success()
         } catch (e: Exception) {

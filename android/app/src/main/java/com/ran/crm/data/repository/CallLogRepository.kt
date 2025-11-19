@@ -7,11 +7,13 @@ import com.ran.crm.data.remote.model.CallData
 import com.ran.crm.data.remote.model.CallUploadRequest
 import com.ran.crm.data.remote.safeApiCall
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlin.time.ExperimentalTime
+import java.util.*
+import java.text.SimpleDateFormat
+import com.ran.crm.data.local.PreferenceManager
 
 class CallLogRepository(
-    private val callLogDao: CallLogDao
+    private val callLogDao: CallLogDao,
+    private val preferenceManager: PreferenceManager
 ) {
 
     fun getAllCallLogs(): Flow<List<CallLog>> = callLogDao.getAllCallLogs()
@@ -32,7 +34,7 @@ class CallLogRepository(
     suspend fun getCallLogsUpdatedSince(since: String): List<CallLog> =
         callLogDao.getCallLogsUpdatedSince(since)
 
-    @OptIn(ExperimentalTime::class)
+
     suspend fun syncCallLogs() {
         // Get local changes since last sync
         val lastSync = getLastSyncTime()
@@ -40,9 +42,9 @@ class CallLogRepository(
             getCallLogsUpdatedSince(lastSync)
         } else {
             // Initial sync - get recent call logs (last 30 days)
-            val thirtyDaysAgo = kotlinx.datetime.Clock.System.now()
-                .minus(kotlinx.datetime.DateTimePeriod(days = 30))
-                .toString()
+            val calendar = Calendar.getInstance()
+            calendar.add(Calendar.DAY_OF_YEAR, -30)
+            val thirtyDaysAgo = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(calendar.time)
             getCallLogsUpdatedSince(thirtyDaysAgo)
         }
 
@@ -136,13 +138,10 @@ class CallLogRepository(
     }
 
     private suspend fun getLastSyncTime(): String? {
-        // This would typically be stored in SharedPreferences or database
-        // For now, return null to force full sync
-        return null
+        return preferenceManager.lastSyncCalls
     }
 
     private suspend fun updateLastSyncTime() {
-        // Update last sync timestamp
-        // This would typically be stored in SharedPreferences
+        preferenceManager.lastSyncCalls = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date())
     }
 }
