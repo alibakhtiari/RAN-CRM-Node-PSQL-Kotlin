@@ -38,6 +38,9 @@ CREATE TABLE call_logs (
 CREATE TABLE sync_audit (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    sync_type VARCHAR(20) CHECK(sync_type IN ('contacts', 'calls', 'full')),
+    status VARCHAR(20) CHECK(status IN ('success', 'error')) NOT NULL,
+    error_message TEXT,
     synced_contacts INT DEFAULT 0,
     synced_calls INT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT now()
@@ -49,3 +52,4 @@ CREATE INDEX idx_contacts_name_trgm ON contacts USING gin (name gin_trgm_ops);
 CREATE INDEX idx_call_logs_contact ON call_logs(contact_id);
 CREATE INDEX idx_call_logs_timestamp ON call_logs(timestamp DESC);
 CREATE INDEX idx_call_logs_user_timestamp ON call_logs(user_id, timestamp DESC);
+CREATE INDEX idx_sync_audit_user ON sync_audit(user_id, created_at DESC);

@@ -3,12 +3,11 @@ package com.ran.crm.ui.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -179,7 +178,7 @@ fun ContactItem(
                 }
                 IconButton(onClick = onMessageClick) {
                     Icon(
-                        imageVector = Icons.Filled.Message,
+                        imageVector = Icons.AutoMirrored.Filled.Message,
                         contentDescription = stringResource(R.string.message)
                     )
                 }

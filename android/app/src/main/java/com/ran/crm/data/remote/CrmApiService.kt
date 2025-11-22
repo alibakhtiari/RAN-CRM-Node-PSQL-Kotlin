@@ -14,6 +14,9 @@ interface CrmApiService {
     @GET("auth/me")
     suspend fun getCurrentUser(): User
 
+    @GET("health")
+    suspend fun healthCheck(): HealthResponse
+
     @GET("contacts")
     suspend fun getContacts(
         @Query("page") page: Int = 1,
@@ -48,4 +51,7 @@ interface CrmApiService {
 
     @DELETE("contacts/{id}")
     suspend fun deleteContact(@Path("id") id: String): retrofit2.Response<Unit>
+
+    @POST("sync-audit")
+    suspend fun recordSyncAudit(@Body request: SyncAuditRequest): SyncAuditResponse
 }

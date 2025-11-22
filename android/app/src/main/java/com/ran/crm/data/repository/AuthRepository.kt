@@ -5,7 +5,9 @@ import com.ran.crm.data.remote.ApiClient
 import com.ran.crm.data.remote.model.LoginRequest
 import com.ran.crm.data.remote.safeApiCall
 
-class AuthRepository {
+import com.ran.crm.data.local.PreferenceManager
+
+class AuthRepository(private val preferenceManager: PreferenceManager) {
 
     suspend fun login(username: String, password: String): Result<User> {
         val loginRequest = LoginRequest(username, password)
@@ -19,6 +21,7 @@ class AuthRepository {
                 val response = result.data
                 // Store the token
                 ApiClient.setAuthToken(response.token)
+                preferenceManager.authToken = response.token
                 // Store user info if needed
                 Result.success(response.user)
             }
@@ -45,6 +48,7 @@ class AuthRepository {
 
     fun logout() {
         ApiClient.setAuthToken(null)
+        preferenceManager.authToken = null
         // Clear any stored user data
     }
 

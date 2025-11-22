@@ -18,15 +18,24 @@ class PreferenceManager(context: Context) {
         get() = prefs.getString(KEY_AUTH_TOKEN, null)
         set(value) = prefs.edit().putString(KEY_AUTH_TOKEN, value).apply()
 
-    var lastSyncContacts: String?
-        get() = prefs.getString(KEY_LAST_SYNC_CONTACTS, null)
-        set(value) = prefs.edit().putString(KEY_LAST_SYNC_CONTACTS, value).apply()
+    var lastSyncContacts: Long
+        get() = prefs.getLong(KEY_LAST_SYNC_CONTACTS, 0L)
+        set(value) = prefs.edit().putLong(KEY_LAST_SYNC_CONTACTS, value).apply()
 
-    var lastSyncCalls: String?
-        get() = prefs.getString(KEY_LAST_SYNC_CALLS, null)
-        set(value) = prefs.edit().putString(KEY_LAST_SYNC_CALLS, value).apply()
+    var lastSyncCalls: Long
+        get() = prefs.getLong(KEY_LAST_SYNC_CALLS, 0L)
+        set(value) = prefs.edit().putLong(KEY_LAST_SYNC_CALLS, value).apply()
 
     fun clear() {
         prefs.edit().clear().apply()
+    }
+
+    fun clearSession() {
+        authToken = null
+        // We might want to keep other prefs like last sync time, or clear everything.
+        // For now, let's just clear auth token as that's what "session" implies.
+        // If we want to full logout, we can call clear()
+        // But based on MainActivity usage, let's make it clear auth token.
+        authToken = null
     }
 }

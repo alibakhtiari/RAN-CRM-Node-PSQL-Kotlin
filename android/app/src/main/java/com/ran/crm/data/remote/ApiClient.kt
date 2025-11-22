@@ -23,7 +23,35 @@ object ApiClient {
         }
 
         OkHttpClient.Builder()
-            .addInterceptor(AuthInterceptor { authToken })
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val requestBuilder = original.newBuilder()
+                
+                authToken?.let {
+                    requestBuilder.header("Authorization", "Bearer $it")
+                }
+                
+                val response = chain.proceed(requestBuilder.build())
+                
+                // Check for 401/403 (Unauthorized/Forbidden)
+                if (response.code == 401 || response.code == 403) {
+                    android.util.Log.e("ApiClient", "Auth error detected: ${response.code}. Triggering logout.")
+                    // Broadcast logout intent
+                    // Note: Accessing Application context via reflection or a static reference would be cleaner,
+                    // but for now we'll assume the app process is alive and we can broadcast.
+                    // Ideally, inject a SessionManager.
+                    try {
+                        val context = com.ran.crm.CrmApplication.instance
+                        val intent = android.content.Intent("com.ran.crm.ACTION_LOGOUT")
+                        intent.setPackage(context.packageName)
+                        context.sendBroadcast(intent)
+                    } catch (e: Exception) {
+                        android.util.Log.e("ApiClient", "Failed to broadcast logout", e)
+                    }
+                }
+                
+                response
+            }
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

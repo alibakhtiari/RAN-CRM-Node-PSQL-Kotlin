@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import com.ran.crm.utils.PhoneUtils
 
 class CallLogReader(
     private val context: Context,
@@ -110,7 +111,9 @@ class CallLogReader(
                         contactId = null, // Will be matched later
                         direction = direction,
                         durationSeconds = duration.toInt(),
-                        timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date(timestamp))
+                        timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date(timestamp)),
+                        phoneNumber = phoneNormalized, // Use normalized phone number
+                        contactName = null // Will be matched by repository with normalized number
                     )
 
                     callLogs.add(callLog)

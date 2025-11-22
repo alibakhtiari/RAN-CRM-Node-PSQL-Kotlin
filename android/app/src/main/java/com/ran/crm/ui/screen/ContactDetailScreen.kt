@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -94,7 +95,7 @@ fun ContactDetailScreen(
                         })
  {
                             Icon(
-                                imageVector = Icons.Filled.Message,
+                                imageVector = Icons.AutoMirrored.Filled.Message,
                                 contentDescription = stringResource(R.string.message)
                             )
                         }
@@ -111,7 +112,7 @@ fun ContactDetailScreen(
                             }
                         }) {
                             Icon(
-                                imageVector = Icons.Filled.Message,
+                                imageVector = Icons.AutoMirrored.Filled.Message,
                                 contentDescription = "WhatsApp",
                                 tint = MaterialTheme.colorScheme.tertiary
                             )

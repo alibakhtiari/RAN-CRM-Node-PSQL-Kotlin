@@ -9,6 +9,12 @@ class CrmApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         // Initialize any application-wide components here
+    }
+
+    companion object {
+        lateinit var instance: CrmApplication
+            private set
     }
 }

@@ -14,7 +14,7 @@ import com.ran.crm.data.local.entity.*
         CallLog::class,
         SyncAudit::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = true
 )
 abstract class CrmDatabase : RoomDatabase() {
@@ -35,7 +35,9 @@ abstract class CrmDatabase : RoomDatabase() {
                     context.applicationContext,
                     CrmDatabase::class.java,
                     DATABASE_NAME
-                ).build()
+                )
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

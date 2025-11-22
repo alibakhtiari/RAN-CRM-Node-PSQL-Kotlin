@@ -15,11 +15,13 @@ import com.ran.crm.R
 import com.ran.crm.data.repository.AuthRepository
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
-    authRepository: AuthRepository = AuthRepository()
+    authRepository: AuthRepository
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -29,6 +31,7 @@ fun LoginScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -36,6 +39,14 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        Image(
+            painter = painterResource(id = R.drawable.logo),
+            contentDescription = "App Logo",
+            modifier = Modifier.size(120.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(
             text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineLarge

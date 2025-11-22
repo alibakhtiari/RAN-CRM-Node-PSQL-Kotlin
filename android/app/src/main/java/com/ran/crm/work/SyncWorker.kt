@@ -17,42 +17,76 @@ class SyncWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            // Get repositories
-            val database = CrmDatabase.getDatabase(applicationContext)
-            val preferenceManager = com.ran.crm.data.local.PreferenceManager(applicationContext)
-            val contactRepository = ContactRepository(database.contactDao(), preferenceManager)
-            val callLogRepository = CallLogRepository(database.callLogDao(), preferenceManager)
-            val syncAuditDao = database.syncAuditDao()
+            // Set timeout of 5 minutes
+            kotlinx.coroutines.withTimeout(5 * 60 * 1000L) {
+                try {
+                    setForeground(createForegroundInfo())
+                } catch (e: Exception) {
+                    android.util.Log.e("SyncWorker", "Failed to set foreground", e)
+                }
+                
+                com.ran.crm.utils.SyncLogger.log("SyncWorker: Starting sync...")
 
-            val startTime = System.currentTimeMillis()
-            var status = "SUCCESS"
-            var message = "Sync completed successfully"
+                val syncManager = com.ran.crm.sync.SyncManager(applicationContext)
+                
+                // Determine if full sync is needed (e.g. from input data or periodic check)
+                // For now, we'll default to Delta Sync unless specified
+                val forceFullSync = inputData.getBoolean("force_full_sync", false)
+                
+                val success = if (forceFullSync) {
+                    syncManager.performFullSync()
+                } else {
+                    syncManager.performDeltaSync()
+                }
 
-            try {
-                // Perform sync operations
-                contactRepository.syncContacts()
-                callLogRepository.syncCallLogs()
-            } catch (e: Exception) {
-                status = "FAILURE"
-                message = e.message ?: "Unknown error"
-                throw e
-            } finally {
-                // Record sync audit
-                val endTime = System.currentTimeMillis()
-                val audit = com.ran.crm.data.local.entity.SyncAudit(
-                    id = java.util.UUID.randomUUID().toString(),
-                    userId = "", // TODO: Get actual user ID
-                    syncedContacts = 0, // TODO: Track actual count
-                    syncedCalls = 0, // TODO: Track actual count
-                    createdAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date())
-                )
-                syncAuditDao.insertSyncAudit(audit)
+                if (success) {
+                    com.ran.crm.utils.SyncLogger.log("SyncWorker: Sync completed successfully")
+                    Result.success()
+                } else {
+                    com.ran.crm.utils.SyncLogger.log("SyncWorker: Sync failed")
+                    Result.retry()
+                }
             }
-
-            Result.success()
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            com.ran.crm.utils.SyncLogger.log("SyncWorker: Sync timed out", e)
+            Result.failure()
         } catch (e: Exception) {
-            // Log error and retry
+            com.ran.crm.utils.SyncLogger.log("SyncWorker: Sync error", e)
             Result.retry()
+        }
+    }
+
+    private fun createForegroundInfo(): ForegroundInfo {
+        val id = "crm_sync_channel"
+        val title = "Syncing Data"
+        val cancel = "Cancel"
+        
+        // Create a Notification channel if necessary
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            createChannel(id, title)
+        }
+
+        val notification = androidx.core.app.NotificationCompat.Builder(applicationContext, id)
+            .setContentTitle(title)
+            .setTicker(title)
+            .setContentText("Syncing contacts and call logs...")
+            .setSmallIcon(com.ran.crm.R.drawable.logo)
+            .setOngoing(true)
+            .addAction(android.R.drawable.ic_delete, cancel, WorkManager.getInstance(applicationContext).createCancelPendingIntent(getId()))
+            .build()
+
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            ForegroundInfo(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            ForegroundInfo(1, notification)
+        }
+    }
+
+    private fun createChannel(id: String, name: String) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val channel = android.app.NotificationChannel(id, name, android.app.NotificationManager.IMPORTANCE_LOW)
+            notificationManager.createNotificationChannel(channel)
         }
     }
 
@@ -83,14 +117,19 @@ class SyncWorker(
             )
         }
 
-        fun scheduleOneTimeSync(context: Context) {
+        fun scheduleOneTimeSync(context: Context, forceFullSync: Boolean = false) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .setRequiresBatteryNotLow(true)
                 .build()
 
+            val data = Data.Builder()
+                .putBoolean("force_full_sync", forceFullSync)
+                .build()
+
             val syncWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
                 .setConstraints(constraints)
+                .setInputData(data)
                 .setBackoffCriteria(
                     BackoffPolicy.EXPONENTIAL,
                     WorkRequest.MIN_BACKOFF_MILLIS,
@@ -111,7 +150,7 @@ class SyncWorker(
 
         fun getSyncWorkInfo(context: Context): LiveData<List<WorkInfo>> {
             return WorkManager.getInstance(context)
-                .getWorkInfosForUniqueWorkLiveData(SYNC_WORK_NAME)
+                .getWorkInfosForUniqueWorkLiveData("${SYNC_WORK_NAME}_one_time")
         }
     }
 }

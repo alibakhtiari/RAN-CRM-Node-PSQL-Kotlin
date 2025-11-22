@@ -15,14 +15,17 @@ fun NavGraph(
     navController: NavHostController,
     database: CrmDatabase,
     authRepository: AuthRepository,
-    preferenceManager: com.ran.crm.data.local.PreferenceManager
+    preferenceManager: com.ran.crm.data.local.PreferenceManager,
+    contactMigrationManager: com.ran.crm.data.manager.ContactMigrationManager
 ) {
     val contactRepository = ContactRepository(database.contactDao(), preferenceManager)
     val callLogRepository = CallLogRepository(database.callLogDao(), preferenceManager)
 
+    val startDestination = if (authRepository.isLoggedIn()) Screen.Contacts.route else Screen.Login.route
+
     NavHost(
         navController = navController,
-        startDestination = Screen.Login.route
+        startDestination = startDestination
     ) {
         composable(Screen.Login.route) {
             LoginScreen(
@@ -47,7 +50,7 @@ fun NavGraph(
                     navController.navigate(Screen.Settings.route)
                 },
                 onAddContactClick = {
-                    navController.navigate(Screen.AddEditContact.createRoute())
+                    navController.navigate(Screen.AddEditContact.createRoute("new"))
                 },
                 contactRepository = contactRepository
             )
@@ -76,7 +79,9 @@ fun NavGraph(
         composable(Screen.Settings.route) {
             SettingsScreen(
                 navController = navController,
-                preferenceManager = preferenceManager
+                preferenceManager = preferenceManager,
+                contactMigrationManager = contactMigrationManager,
+                onBackClick = { navController.popBackStack() }
             )
         }
 

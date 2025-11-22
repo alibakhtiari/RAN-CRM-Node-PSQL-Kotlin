@@ -16,21 +16,27 @@ router.get('/', async (req, res) => {
     const { updated_since } = req.query;
 
     let whereClause = '';
-    let params = [limit, offset];
-    let paramIndex = 3;
+    let countParams = [];
+    let dataParams = [];
 
     // Delta sync support
     if (updated_since) {
-      whereClause = 'WHERE updated_at > $3';
-      params = [limit, offset, new Date(updated_since)];
+      whereClause = 'WHERE updated_at > $1';
+      countParams = [new Date(updated_since)];
+      dataParams = [new Date(updated_since), limit, offset];
+    } else {
+      dataParams = [limit, offset];
     }
 
     const countQuery = `SELECT COUNT(*) FROM contacts ${whereClause}`;
-    const countResult = await pool.query(countQuery, updated_since ? [new Date(updated_since)] : []);
+    const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].count);
 
-    const dataQuery = `SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts ${whereClause} ORDER BY updated_at DESC LIMIT $${paramIndex - 2} OFFSET $${paramIndex - 1}`;
-    const result = await pool.query(dataQuery, params);
+    const dataQuery = updated_since
+      ? `SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts ${whereClause} ORDER BY updated_at DESC LIMIT $2 OFFSET $3`
+      : `SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts ORDER BY updated_at DESC LIMIT $1 OFFSET $2`;
+
+    const result = await pool.query(dataQuery, dataParams);
 
     res.json(getPaginationResult(result.rows, total, page, limit));
   } catch (error) {

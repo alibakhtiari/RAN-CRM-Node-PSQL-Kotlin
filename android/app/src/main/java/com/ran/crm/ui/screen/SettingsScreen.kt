@@ -1,33 +1,165 @@
 package com.ran.crm.ui.screen
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.ran.crm.data.local.PreferenceManager
-import com.ran.crm.work.SyncWorker
 import kotlinx.coroutines.launch
-import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     navController: NavController,
-    preferenceManager: PreferenceManager
+    preferenceManager: PreferenceManager,
+    contactMigrationManager: com.ran.crm.data.manager.ContactMigrationManager,
+    onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    // State for settings
-    var syncInterval by remember { mutableStateOf(15) } // Default 15 mins
-    var notificationsEnabled by remember { mutableStateOf(true) }
+    // Sync Status
+    var isSyncing by remember { mutableStateOf(false) }
+    var lastSyncTime by remember { mutableStateOf(preferenceManager.lastSyncContacts) }
     
+    // Migration Status
+    var showMigrationDialog by remember { mutableStateOf(false) }
+    var isMigrating by remember {mutableStateOf(false) }
+    var migrationResult by remember { mutableStateOf<String?>(null) }
+
+    // Server Status
+    var isServerConnected by remember { mutableStateOf<Boolean?>(null) }
+    
+    // Check server status periodically
+    LaunchedEffect(Unit) {
+        while (true) {
+            try {
+                val response = com.ran.crm.data.remote.ApiClient.apiService.healthCheck()
+                isServerConnected = response.status == "OK"
+            } catch (e: Exception) {
+                isServerConnected = false
+            }
+            kotlinx.coroutines.delay(30000) // Check every 30 seconds
+        }
+    }
+
+    // Force recomposition when permissions change
+    var permissionRefreshCount by remember { mutableIntStateOf(0) }
+
+    // Permission launcher
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { 
+        permissionRefreshCount++ 
+    }
+
+    // Permissions State
+    val permissions = remember {
+        buildList {
+            add("Read Contacts" to android.Manifest.permission.READ_CONTACTS)
+            add("Write Contacts" to android.Manifest.permission.WRITE_CONTACTS)
+            add("Call Log" to android.Manifest.permission.READ_CALL_LOG)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                add("Notifications" to android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    // Observe WorkManager
+    DisposableEffect(Unit) {
+        val observer = androidx.lifecycle.Observer<List<androidx.work.WorkInfo>> { workInfos ->
+            val syncWorkInfo = workInfos.firstOrNull()
+            
+            android.util.Log.d("SettingsScreen", "WorkInfo update: state=${syncWorkInfo?.state}, id=${syncWorkInfo?.id}")
+            
+            if (syncWorkInfo != null) {
+                isSyncing = syncWorkInfo.state == androidx.work.WorkInfo.State.RUNNING || 
+                           syncWorkInfo.state == androidx.work.WorkInfo.State.ENQUEUED
+                
+                if (syncWorkInfo.state == androidx.work.WorkInfo.State.SUCCEEDED) {
+                    lastSyncTime = preferenceManager.lastSyncContacts
+                    isSyncing = false
+                    android.util.Log.d("SettingsScreen", "Sync succeeded. Updated lastSyncTime.")
+                } else if (syncWorkInfo.state == androidx.work.WorkInfo.State.FAILED || 
+                          syncWorkInfo.state == androidx.work.WorkInfo.State.CANCELLED) {
+                    isSyncing = false
+                    android.util.Log.d("SettingsScreen", "Sync failed or cancelled.")
+                }
+            }
+        }
+        val liveData = androidx.work.WorkManager.getInstance(context)
+            .getWorkInfosForUniqueWorkLiveData("crm_sync_work_one_time")
+        
+        liveData.observeForever(observer)
+        onDispose {
+            liveData.removeObserver(observer)
+        }
+    }
+
+    if (showMigrationDialog) {
+        AlertDialog(
+            onDismissRequest = { showMigrationDialog = false },
+            title = { Text("Import & Move Contacts") },
+            text = { 
+                Text("This will import contacts from your phone to the CRM and REMOVE them from your phone's address book to prevent duplicates. This action cannot be undone.") 
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showMigrationDialog = false
+                        isMigrating = true
+                        scope.launch {
+                            val count = contactMigrationManager.importSystemContacts(deleteAfterImport = true)
+                            isMigrating = false
+                            migrationResult = "Moved $count contacts successfully."
+                        }
+                    }
+                ) {
+                    Text("Confirm Move")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMigrationDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (migrationResult != null) {
+        AlertDialog(
+            onDismissRequest = { migrationResult = null },
+            title = { Text("Migration Complete") },
+            text = { Text(migrationResult!!) },
+            confirmButton = {
+                TextButton(onClick = { migrationResult = null }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") }
+                title = { Text("Settings") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
             )
         }
     ) { paddingValues ->
@@ -36,81 +168,313 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
-            Text(
-                text = "Sync Settings",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            
-            // Sync Interval
-            Text("Sync Interval (minutes)")
-            Row(
+            // Server Status
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                listOf(15, 30, 60).forEach { interval ->
-                    FilterChip(
-                        selected = syncInterval == interval,
-                        onClick = { 
-                            syncInterval = interval
-                            SyncWorker.schedulePeriodicSync(context, interval)
-                        },
-                        label = { Text("$interval m") }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Server Status",
+                        style = MaterialTheme.typography.bodyMedium
                     )
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        when (isServerConnected) {
+                            true -> {
+                                androidx.compose.foundation.Canvas(modifier = Modifier.size(12.dp)) {
+                                    drawCircle(color = androidx.compose.ui.graphics.Color.Green)
+                                }
+                                Text(
+                                    text = "Connected",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            false -> {
+                                androidx.compose.foundation.Canvas(modifier = Modifier.size(12.dp)) {
+                                    drawCircle(color = androidx.compose.ui.graphics.Color.Red)
+                                }
+                                Text(
+                                    text = "Disconnected",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            null -> {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(12.dp),
+                                    strokeWidth = 1.5.dp
+                                )
+                                Text(
+                                    text = "Checking...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 }
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Notifications
-            Row(
+            // Permissions Section
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Text("Persistent Notification")
-                Switch(
-                    checked = notificationsEnabled,
-                    onCheckedChange = { 
-                        notificationsEnabled = it
-                        // TODO: Implement notification toggle logic if needed
-                        // WorkManager notification handling is usually done in the Worker itself
-                        // or via a ForegroundService. 
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Permissions",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Regular permissions
+                    // Read refresh count to trigger recomposition
+                    val _refresh = permissionRefreshCount
+                    permissions.forEach { (label, permission) ->
+                        val isGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                            context, permission
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        
+                        PermissionItem(
+                            label = label,
+                            isGranted = isGranted,
+                            onRequestPermission = {
+                                permissionLauncher.launch(arrayOf(permission))
+                            }
+                        )
                     }
-                )
+                    
+                    // Battery Optimization
+                    val pm = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+                    val isIgnoring = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                        pm.isIgnoringBatteryOptimizations(context.packageName)
+                    } else {
+                        true
+                    }
+                    
+                    PermissionItem(
+                        label = "Battery Optimization",
+                        isGranted = isIgnoring,
+                        onRequestPermission = {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                try {
+                                    val intent = android.content.Intent(
+                                        android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                                    ).apply {
+                                        data = android.net.Uri.parse("package:${context.packageName}")
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    try {
+                                        val intent = android.content.Intent(
+                                            android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                                        )
+                                        context.startActivity(intent)
+                                    } catch (e2: Exception) {
+                                        // Ignore
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Open Settings Button
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                val intent = android.content.Intent(
+                                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                                ).apply {
+                                    data = android.net.Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                // Ignore
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Open App Settings")
+                    }
+                }
             }
             
-            Divider(modifier = Modifier.padding(vertical = 16.dp))
-            
-            // Sync Logs
-            Button(
-                onClick = { navController.navigate("sync_logs") },
-                modifier = Modifier.fillMaxWidth()
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Contact Migration
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Text("View Sync Logs")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Import & Move Contacts",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    
+                    Button(
+                        onClick = { showMigrationDialog = true },
+                        enabled = !isMigrating,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        if (isMigrating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Move")
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Sync Section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "Sync Data",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        
+                        val relativeTime = if (lastSyncTime > 0) {
+                            android.text.format.DateUtils.getRelativeTimeSpanString(
+                                lastSyncTime,
+                                System.currentTimeMillis(),
+                                android.text.format.DateUtils.MINUTE_IN_MILLIS
+                            ).toString()
+                        } else {
+                            "Never"
+                        }
+                        
+                        Text(
+                            text = relativeTime,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    Button(
+                        onClick = {
+                            android.util.Log.d("SettingsScreen", "Sync button clicked - Forcing Full Sync")
+                            com.ran.crm.work.SyncWorker.scheduleOneTimeSync(context, forceFullSync = true)
+                        },
+                        enabled = !isSyncing,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        if (isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Sync")
+                        }
+                    }
+                }
             }
             
-            Spacer(modifier = Modifier.weight(1f))
-            
-            // Logout
+            Spacer(modifier = Modifier.height(24.dp))
+
             Button(
                 onClick = {
                     scope.launch {
                         preferenceManager.clear()
-                        // Cancel background work
-                        SyncWorker.cancelPeriodicSync(context)
-                        // Navigate to Login
                         navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
+                            popUpTo(0)
                         }
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
             ) {
                 Text("Logout")
             }
+        }
+    }
+}
+
+@Composable
+private fun PermissionItem(
+    label: String,
+    isGranted: Boolean,
+    onRequestPermission: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            if (isGranted) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        
+        Button(
+            onClick = onRequestPermission,
+            enabled = !isGranted,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(if (isGranted) "Granted" else "Grant")
         }
     }
 }

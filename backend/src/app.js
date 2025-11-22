@@ -6,6 +6,7 @@ const userRoutes = require('./routes/users');
 const contactRoutes = require('./routes/contacts');
 const callRoutes = require('./routes/calls');
 const syncRoutes = require('./routes/sync');
+const syncAuditRoutes = require('./routes/syncAudit');
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/users', userRoutes);
 app.use('/contacts', contactRoutes);
 app.use('/calls', callRoutes);
 app.use('/sync', syncRoutes);
+app.use('/sync-audit', syncAuditRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
