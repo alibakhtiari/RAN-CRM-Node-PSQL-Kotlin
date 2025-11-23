@@ -30,11 +30,6 @@ fun SettingsScreen(
     // Sync Status
     var isSyncing by remember { mutableStateOf(false) }
     var lastSyncTime by remember { mutableStateOf(preferenceManager.lastSyncContacts) }
-    
-    // Migration Status
-    var showMigrationDialog by remember { mutableStateOf(false) }
-    var isMigrating by remember {mutableStateOf(false) }
-    var migrationResult by remember { mutableStateOf<String?>(null) }
 
     // Server Status
     var isServerConnected by remember { mutableStateOf<Boolean?>(null) }
@@ -103,49 +98,6 @@ fun SettingsScreen(
         onDispose {
             liveData.removeObserver(observer)
         }
-    }
-
-    if (showMigrationDialog) {
-        AlertDialog(
-            onDismissRequest = { showMigrationDialog = false },
-            title = { Text("Import & Move Contacts") },
-            text = { 
-                Text("This will import contacts from your phone to the CRM and REMOVE them from your phone's address book to prevent duplicates. This action cannot be undone.") 
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showMigrationDialog = false
-                        isMigrating = true
-                        scope.launch {
-                            val count = contactMigrationManager.importSystemContacts(deleteAfterImport = true)
-                            isMigrating = false
-                            migrationResult = "Moved $count contacts successfully."
-                        }
-                    }
-                ) {
-                    Text("Confirm Move")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showMigrationDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    if (migrationResult != null) {
-        AlertDialog(
-            onDismissRequest = { migrationResult = null },
-            title = { Text("Migration Complete") },
-            text = { Text(migrationResult!!) },
-            confirmButton = {
-                TextButton(onClick = { migrationResult = null }) {
-                    Text("OK")
-                }
-            }
-        )
     }
 
     Scaffold(
@@ -236,13 +188,13 @@ fun SettingsScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(1.dp)
                 ) {
                     Text(
                         text = "Permissions",
                         style = MaterialTheme.typography.titleMedium
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(100.dp))
                     
                     // Regular permissions
                     // Read refresh count to trigger recomposition
@@ -318,43 +270,6 @@ fun SettingsScreen(
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Contact Migration
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Import & Move Contacts",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    
-                    Button(
-                        onClick = { showMigrationDialog = true },
-                        enabled = !isMigrating,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        if (isMigrating) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text("Move")
-                        }
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
 
             // Sync Section
