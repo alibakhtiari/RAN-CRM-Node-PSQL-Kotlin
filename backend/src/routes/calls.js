@@ -151,6 +151,26 @@ router.post('/', async (req, res) => {
           }
         }
 
+        // Check for duplicates before inserting
+        const duplicateCheck = await client.query(
+          `SELECT id FROM call_logs 
+           WHERE user_id = $1 
+           AND direction = $2 
+           AND duration_seconds = $3 
+           AND timestamp >= $4::timestamp - interval '1 second'
+           AND timestamp <= $4::timestamp + interval '1 second'
+           AND (
+             (contact_id IS NOT NULL AND contact_id = $5) OR 
+             (contact_id IS NULL AND $5 IS NULL)
+           )`,
+          [req.user.id, direction, duration_seconds, timestamp || new Date(), finalContactId]
+        );
+
+        if (duplicateCheck.rows.length > 0) {
+          // Skip duplicate
+          continue;
+        }
+
         const result = await client.query(
           'INSERT INTO call_logs (user_id, contact_id, direction, duration_seconds, timestamp) VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id, contact_id, direction, duration_seconds, timestamp',
           [req.user.id, finalContactId, direction, duration_seconds, timestamp || new Date()]

@@ -25,11 +25,8 @@ class ContactWriter(
     private val CRM_CONTACT_NOTE = "RAN_CRM_CONTACT"
 
     /**
-     * Syncs CRM contacts to Android device contacts
-     */
-    /**
      * Syncs CRM contacts to Android device contacts.
-     * This method assumes the local database is already up-to-date.
+     * Uses SOURCE_ID to uniquely identify CRM contacts on the device.
      */
     suspend fun syncToDevice(): SyncResult = withContext(Dispatchers.IO) {
         var exported = 0
@@ -42,12 +39,9 @@ class ContactWriter(
             
             com.ran.crm.utils.SyncLogger.log("ContactWriter: Starting export to device...")
             
-            // 0. Deduplicate existing contacts to clean up mess
-            deduplicateContacts(contentResolver)
-
             // Get all CRM contacts from LOCAL DB
             val crmContacts = contactRepository.getAllContacts().first()
-            val crmPhoneNumbers = crmContacts.mapNotNull { it.phoneNormalized }.toSet()
+            val crmContactIds = crmContacts.map { it.id }.toSet()
             
             com.ran.crm.utils.SyncLogger.log("ContactWriter: Found ${crmContacts.size} CRM contacts to sync")
 
@@ -59,16 +53,28 @@ class ContactWriter(
                         continue
                     }
 
-                    val existingId = findContactByPhone(contentResolver, contact.phoneNormalized)
+                    // Try to find by SOURCE_ID first (Robust way)
+                    var rawContactId = findRawContactBySourceId(contentResolver, contact.id)
                     
-                    if (existingId != null) {
-                        // Update existing contact
-                        updateDeviceContact(contentResolver, existingId, contact)
-                        updated++
+                    if (rawContactId == null) {
+                        // Fallback: Try to find by Phone Number (Migration path)
+                        // Only look for contacts in our account to avoid messing with user's other contacts
+                        rawContactId = findRawContactByPhoneInAccount(contentResolver, contact.phoneNormalized)
+                        
+                        if (rawContactId != null) {
+                            // Found by phone, so we update it and SET the SOURCE_ID for future
+                            com.ran.crm.utils.SyncLogger.log("ContactWriter: Migrating contact ${contact.name} (ID: ${contact.id})")
+                            updateDeviceContact(contentResolver, rawContactId, contact, updateSourceId = true)
+                            updated++
+                        } else {
+                            // Not found, create new
+                            createDeviceContact(contentResolver, contact)
+                            exported++
+                        }
                     } else {
-                        // Create new contact
-                        createDeviceContact(contentResolver, contact)
-                        exported++
+                        // Found by SOURCE_ID, just update details
+                        updateDeviceContact(contentResolver, rawContactId, contact, updateSourceId = false)
+                        updated++
                     }
                 } catch (e: Exception) {
                     com.ran.crm.utils.SyncLogger.log("ContactWriter: Failed to sync contact: ${contact.name}", e)
@@ -76,8 +82,8 @@ class ContactWriter(
                 }
             }
             
-            // 2. Prune orphaned contacts (Contacts we created but are no longer in CRM)
-            pruneOrphanedContacts(contentResolver, crmPhoneNumbers)
+            // 2. Prune orphaned contacts (Contacts in our account but not in CRM)
+            pruneOrphanedContacts(contentResolver, crmContactIds)
 
             com.ran.crm.utils.SyncLogger.log("ContactWriter: Export complete: $exported created, $updated updated, $errors errors")
         } catch (e: Exception) {
@@ -89,87 +95,48 @@ class ContactWriter(
     }
 
     /**
-     * Deduplicate contacts on device based on normalized phone number.
-     * Keeps the one with our Note tag, or the first one found.
+     * Delete contacts that are in our account but not in the CRM list.
      */
-    private fun deduplicateContacts(contentResolver: ContentResolver) {
+    private fun pruneOrphanedContacts(contentResolver: ContentResolver, crmContactIds: Set<String>) {
         try {
-            val contacts = getAllDeviceContacts(contentResolver)
-            val grouped = contacts.groupBy { it.phoneNormalized }
-            
-            var deletedCount = 0
-            
-            for ((phone, list) in grouped) {
-                if (phone == null) continue
-                if (list.size > 1) {
-                    // Found duplicates
-                    android.util.Log.d("ContactWriter", "Found ${list.size} duplicates for $phone")
-                    
-                    // Prioritize keeping the one with our tag
-                    val tagged = list.find { hasOurTag(contentResolver, it.id) }
-                    val toKeep = tagged ?: list.first()
-                    
-                    val toDelete = list.filter { it.id != toKeep.id }
-                    
-                    for (contact in toDelete) {
-                        deleteContact(contentResolver, contact.id)
-                        deletedCount++
-                    }
-                }
-            }
-            if (deletedCount > 0) {
-                android.util.Log.d("ContactWriter", "Deduplication complete. Removed $deletedCount duplicates.")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("ContactWriter", "Deduplication failed", e)
-        }
-    }
-
-    /**
-     * Delete contacts that have our tag but are not in the CRM list.
-     */
-    private fun pruneOrphanedContacts(contentResolver: ContentResolver, crmPhoneNumbers: Set<String>) {
-        try {
-            android.util.Log.d("ContactWriter", "=== PRUNING ORPHANED CONTACTS ===")
-            android.util.Log.d("ContactWriter", "CRM Phone Numbers (${crmPhoneNumbers.size}): ${crmPhoneNumbers.joinToString()}")
-            
-            // Find all contacts with our tag
-            val taggedContactIds = getTaggedContactIds(contentResolver)
-            android.util.Log.d("ContactWriter", "Found ${taggedContactIds.size} tagged contacts on device")
+            // Find all contacts in our account
+            val accountContacts = getAccountContacts(contentResolver)
             
             var prunedCount = 0
-            for (rawContactId in taggedContactIds) {
-                val phone = getPhoneForRawContact(contentResolver, rawContactId)
-                android.util.Log.d("ContactWriter", "Checking rawContactId=$rawContactId, phone=$phone")
+            for ((rawContactId, sourceId) in accountContacts) {
+                // If sourceId is null, it might be a legacy contact. 
+                // If we strictly enforce source_id, we should delete it if it wasn't matched during the sync loop above.
+                // However, to be safe, we only delete if we are sure it's not in CRM.
                 
-                if (phone != null) {
-                    val isInCrm = crmPhoneNumbers.contains(phone)
-                    android.util.Log.d("ContactWriter", "  Phone: $phone, In CRM: $isInCrm")
-                    
-                    if (!isInCrm) {
-                        // This contact is ours, but not in CRM anymore. Delete it.
-                        android.util.Log.d("ContactWriter", "  ❌ PRUNING orphaned contact: $phone (RawContactId: $rawContactId)")
-                        deleteContact(contentResolver, rawContactId)
-                        prunedCount++
-                    } else {
-                        android.util.Log.d("ContactWriter", "  ✅ KEEPING contact: $phone (Still in CRM)")
-                    }
+                // If sourceId is present and NOT in crmContactIds -> Delete
+                if (sourceId != null && !crmContactIds.contains(sourceId)) {
+                    com.ran.crm.utils.SyncLogger.log("ContactWriter: Pruning orphaned contact. SourceID: $sourceId")
+                    deleteContact(contentResolver, rawContactId)
+                    prunedCount++
+                }
+                // If sourceId is NULL, it means it wasn't matched by phone in the sync loop (otherwise it would have been updated).
+                // So it's safe to delete as it's an extra contact in our account.
+                else if (sourceId == null) {
+                     com.ran.crm.utils.SyncLogger.log("ContactWriter: Pruning legacy/unmatched contact. ID: $rawContactId")
+                     deleteContact(contentResolver, rawContactId)
+                     prunedCount++
                 }
             }
             
-            android.util.Log.d("ContactWriter", "Pruning complete. Removed $prunedCount orphans.")
+            if (prunedCount > 0) {
+                com.ran.crm.utils.SyncLogger.log("ContactWriter: Pruning complete. Removed $prunedCount orphans.")
+            }
         } catch (e: Exception) {
-            android.util.Log.e("ContactWriter", "Pruning failed", e)
+            com.ran.crm.utils.SyncLogger.log("ContactWriter: Pruning failed", e)
         }
     }
 
-    private fun getTaggedContactIds(contentResolver: ContentResolver): List<String> {
-        val ids = mutableListOf<String>()
+    private fun getAccountContacts(contentResolver: ContentResolver): Map<String, String?> {
+        val contacts = mutableMapOf<String, String?>()
         
-        // Query by ACCOUNT_TYPE instead of note tag
         val cursor = contentResolver.query(
             ContactsContract.RawContacts.CONTENT_URI,
-            arrayOf(ContactsContract.RawContacts._ID),
+            arrayOf(ContactsContract.RawContacts._ID, ContactsContract.RawContacts.SOURCE_ID),
             "${ContactsContract.RawContacts.ACCOUNT_TYPE} = ?",
             arrayOf(com.ran.crm.sync.AccountHelper.ACCOUNT_TYPE),
             null
@@ -177,43 +144,47 @@ class ContactWriter(
         
         cursor?.use {
             val idIndex = it.getColumnIndex(ContactsContract.RawContacts._ID)
+            val sourceIdIndex = it.getColumnIndex(ContactsContract.RawContacts.SOURCE_ID)
             while (it.moveToNext()) {
-                ids.add(it.getString(idIndex))
+                val id = it.getString(idIndex)
+                val sourceId = it.getString(sourceIdIndex)
+                contacts[id] = sourceId
             }
         }
-        
-        android.util.Log.d("ContactWriter", "Found ${ids.size} contacts with account type ${com.ran.crm.sync.AccountHelper.ACCOUNT_TYPE}")
-        return ids
+        return contacts
     }
 
-    private fun hasOurTag(contentResolver: ContentResolver, rawContactId: String): Boolean {
+    private fun findRawContactBySourceId(contentResolver: ContentResolver, sourceId: String): String? {
         val cursor = contentResolver.query(
-            ContactsContract.Data.CONTENT_URI,
-            arrayOf(ContactsContract.Data._ID),
-            "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ? AND ${ContactsContract.CommonDataKinds.Note.NOTE} = ?",
-            arrayOf(rawContactId, ContactsContract.CommonDataKinds.Note.CONTENT_ITEM_TYPE, CRM_CONTACT_NOTE),
+            ContactsContract.RawContacts.CONTENT_URI,
+            arrayOf(ContactsContract.RawContacts._ID),
+            "${ContactsContract.RawContacts.ACCOUNT_TYPE} = ? AND ${ContactsContract.RawContacts.SOURCE_ID} = ?",
+            arrayOf(com.ran.crm.sync.AccountHelper.ACCOUNT_TYPE, sourceId),
             null
         )
-        val hasTag = cursor?.count ?: 0 > 0
-        cursor?.close()
-        return hasTag
+        
+        return cursor?.use {
+            if (it.moveToFirst()) {
+                it.getString(it.getColumnIndex(ContactsContract.RawContacts._ID))
+            } else null
+        }
     }
 
-    private fun getPhoneForRawContact(contentResolver: ContentResolver, rawContactId: String): String? {
+    private fun findRawContactByPhoneInAccount(contentResolver: ContentResolver, phoneNormalized: String): String? {
+        // This is more complex because we need to join Phone -> RawContact and filter by Account
         val cursor = contentResolver.query(
             ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            arrayOf(ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER),
-            "${ContactsContract.Data.RAW_CONTACT_ID} = ?",
-            arrayOf(rawContactId),
+            arrayOf(ContactsContract.Data.RAW_CONTACT_ID),
+            "${ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER} = ? AND ${ContactsContract.RawContacts.ACCOUNT_TYPE} = ?",
+            arrayOf(phoneNormalized, com.ran.crm.sync.AccountHelper.ACCOUNT_TYPE),
             null
         )
-        var phone: String? = null
-        if (cursor?.moveToFirst() == true) {
-            val idx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER)
-            phone = cursor.getString(idx)
+
+        return cursor?.use {
+            if (it.moveToFirst()) {
+                it.getString(it.getColumnIndex(ContactsContract.Data.RAW_CONTACT_ID))
+            } else null
         }
-        cursor?.close()
-        return phone
     }
 
     private fun deleteContact(contentResolver: ContentResolver, rawContactId: String) {
@@ -223,68 +194,18 @@ class ContactWriter(
         contentResolver.delete(uri, "${ContactsContract.RawContacts._ID} = ?", arrayOf(rawContactId))
     }
 
-    private data class DeviceContact(val id: String, val phoneNormalized: String?)
-
-    private fun getAllDeviceContacts(contentResolver: ContentResolver): List<DeviceContact> {
-        val contacts = mutableListOf<DeviceContact>()
-        val cursor = contentResolver.query(
-            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            arrayOf(ContactsContract.Data.RAW_CONTACT_ID, ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER),
-            null,
-            null,
-            null
-        )
-        
-        cursor?.use {
-            val idIndex = it.getColumnIndex(ContactsContract.Data.RAW_CONTACT_ID)
-            val phoneIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER)
-            
-            while (it.moveToNext()) {
-                val id = it.getString(idIndex)
-                val phone = it.getString(phoneIndex)
-                contacts.add(DeviceContact(id, phone))
-            }
-        }
-        return contacts
-    }
-
-    /**
-     * Find a contact in device by phone number
-     */
-    private fun findContactByPhone(contentResolver: ContentResolver, phoneNormalized: String): String? {
-        val projection = arrayOf(ContactsContract.Data.RAW_CONTACT_ID)
-        val selection = "${ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER} = ?"
-        val selectionArgs = arrayOf(phoneNormalized)
-
-        val cursor = contentResolver.query(
-            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            projection,
-            selection,
-            selectionArgs,
-            null
-        )
-
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val idIndex = it.getColumnIndex(ContactsContract.Data.RAW_CONTACT_ID)
-                return it.getString(idIndex)
-            }
-        }
-
-        return null
-    }
-
     /**
      * Create a new contact in device
      */
     private fun createDeviceContact(contentResolver: ContentResolver, contact: Contact) {
         val ops = ArrayList<ContentProviderOperation>()
 
-        // Create raw contact associated with our Custom Account
+        // Create raw contact associated with our Custom Account AND SOURCE_ID
         ops.add(
             ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
                 .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, com.ran.crm.sync.AccountHelper.ACCOUNT_TYPE)
                 .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, com.ran.crm.sync.AccountHelper.ACCOUNT_NAME)
+                .withValue(ContactsContract.RawContacts.SOURCE_ID, contact.id) // CRITICAL: Set Source ID
                 .build()
         )
 
@@ -307,7 +228,7 @@ class ContactWriter(
                 .build()
         )
         
-        // Add Note tag (still useful for debugging, though Account Type is the main identifier now)
+        // Add Note tag (Legacy support, but good for debugging)
         ops.add(
             ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                 .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
@@ -322,8 +243,18 @@ class ContactWriter(
     /**
      * Update an existing contact in device
      */
-    private fun updateDeviceContact(contentResolver: ContentResolver, rawContactId: String, contact: Contact) {
+    private fun updateDeviceContact(contentResolver: ContentResolver, rawContactId: String, contact: Contact, updateSourceId: Boolean) {
         val ops = ArrayList<ContentProviderOperation>()
+
+        // Update SOURCE_ID if needed (Migration)
+        if (updateSourceId) {
+            ops.add(
+                ContentProviderOperation.newUpdate(ContactsContract.RawContacts.CONTENT_URI)
+                    .withSelection("${ContactsContract.RawContacts._ID} = ?", arrayOf(rawContactId))
+                    .withValue(ContactsContract.RawContacts.SOURCE_ID, contact.id)
+                    .build()
+            )
+        }
 
         // Update name
         val nameWhere = "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
@@ -354,17 +285,6 @@ class ContactWriter(
                 .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
                 .build()
         )
-        
-        // Ensure Note tag exists
-        if (!hasOurTag(contentResolver, rawContactId)) {
-             ops.add(
-                ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                    .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
-                    .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Note.CONTENT_ITEM_TYPE)
-                    .withValue(ContactsContract.CommonDataKinds.Note.NOTE, CRM_CONTACT_NOTE)
-                    .build()
-            )
-        }
 
         contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
     }

@@ -186,7 +186,8 @@ async function runTests() {
         logTest('Get Call Logs', false, `Error: ${e.message}`);
     }
 
-    // Test 10: Upload Call Logs
+    // Test 10: Upload Call Logs (Normal)
+    const testTimestamp = new Date().toISOString();
     try {
         const res = await makeRequest('POST', '/calls', {
             calls: [
@@ -194,7 +195,7 @@ async function runTests() {
                     contact_id: createdContactId,
                     direction: 'outgoing',
                     duration_seconds: 120,
-                    timestamp: new Date().toISOString()
+                    timestamp: testTimestamp
                 }
             ]
         }, authToken);
@@ -208,7 +209,37 @@ async function runTests() {
         logTest('Upload Call Logs', false, `Error: ${e.message}`);
     }
 
-    // Test 11: Delete Contact (cleanup)
+    // Test 11: Upload Duplicate Call Logs (Should be deduplicated)
+    try {
+        const res = await makeRequest('POST', '/calls', {
+            calls: [
+                {
+                    contact_id: createdContactId,
+                    direction: 'outgoing',
+                    duration_seconds: 120,
+                    timestamp: testTimestamp // Same timestamp
+                }
+            ]
+        }, authToken);
+
+        if (res.status === 200 || res.status === 201) {
+            // We expect the backend to accept it but NOT create a new record (count should be 0 or it might return empty array depending on implementation)
+            // My implementation returns the inserted calls. If it's a duplicate, it skips it.
+            // So if we send 1 duplicate, we expect `calls` array to be empty or length 0.
+            const insertedCount = res.data?.calls?.length || 0;
+            if (insertedCount === 0) {
+                logTest('Duplicate Call Log Check', true, `Correctly ignored duplicate call log`);
+            } else {
+                logTest('Duplicate Call Log Check', false, `Failed: Inserted ${insertedCount} duplicates`);
+            }
+        } else {
+            logTest('Duplicate Call Log Check', false, `Status: ${res.status}, Response: ${JSON.stringify(res.data)}`);
+        }
+    } catch (e) {
+        logTest('Duplicate Call Log Check', false, `Error: ${e.message}`);
+    }
+
+    // Test 12: Delete Contact (cleanup)
     if (createdContactId) {
         try {
             const res = await makeRequest('DELETE', `/contacts/${createdContactId}`, null, authToken);

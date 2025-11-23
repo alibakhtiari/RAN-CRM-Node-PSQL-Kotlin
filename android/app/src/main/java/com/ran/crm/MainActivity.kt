@@ -81,6 +81,10 @@ class MainActivity : ComponentActivity() {
         // Ensure Sync Account Exists
         com.ran.crm.sync.AccountHelper.ensureAccountExists(this)
 
+        // Schedule Periodic Sync (WorkManager)
+        // This ensures reliable background sync and shows a notification while syncing
+        com.ran.crm.work.SyncWorker.schedulePeriodicSync(this, 15)
+
         enableEdgeToEdge()
         setContent {
             RANCRMTheme {
