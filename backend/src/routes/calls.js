@@ -75,10 +75,16 @@ router.get('/:contact_id', async (req, res) => {
     const { page, limit, offset } = getPaginationParams(req);
 
     // Verify contact exists and user has access
-    const contactCheck = await pool.query(
-      'SELECT id FROM contacts WHERE id = $1 AND created_by = $2',
-      [contact_id, req.user.id]
-    );
+    // Check if contact exists and belongs to user (or user is admin)
+    let contactCheckQuery = 'SELECT id FROM contacts WHERE id = $1';
+    let contactCheckParams = [contact_id];
+
+    if (!req.user.is_admin) {
+      contactCheckQuery += ' AND created_by = $2';
+      contactCheckParams.push(req.user.id);
+    }
+
+    const contactCheck = await pool.query(contactCheckQuery, contactCheckParams);
 
     if (contactCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Contact not found or access denied' });
@@ -92,9 +98,11 @@ router.get('/:contact_id', async (req, res) => {
 
     const result = await pool.query(
       `SELECT cl.id, cl.user_id, cl.contact_id, cl.direction, cl.duration_seconds, cl.timestamp,
-              c.name as contact_name, c.phone_raw as contact_phone
+              c.name as contact_name, c.phone_raw as contact_phone,
+              u.name as user_name
        FROM call_logs cl
        LEFT JOIN contacts c ON cl.contact_id = c.id
+       LEFT JOIN users u ON cl.user_id = u.id
        WHERE cl.contact_id = $1
        ORDER BY cl.timestamp DESC LIMIT $2 OFFSET $3`,
       [contact_id, limit, offset]

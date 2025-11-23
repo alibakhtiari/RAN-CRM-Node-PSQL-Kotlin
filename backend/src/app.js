@@ -23,9 +23,12 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Admin interface
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/admin.html'));
+// Serve React App static files
+app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
+
+// Handle SPA routing for admin panel
+app.get('/admin/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/admin/index.html'));
 });
 
 // Routes

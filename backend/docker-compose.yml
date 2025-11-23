@@ -43,5 +43,17 @@ services:
       - /app/node_modules
     command: npm run dev
 
+  ran-crm-admin:
+    build:
+      context: ./admin-panel
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./admin-panel:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:3000
+
 volumes:
   postgres_data:

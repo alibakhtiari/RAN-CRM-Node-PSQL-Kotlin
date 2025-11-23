@@ -21,20 +21,27 @@ router.get('/', async (req, res) => {
 
     // Delta sync support
     if (updated_since) {
-      whereClause = 'WHERE updated_at > $1';
+      whereClause = 'WHERE c.updated_at > $1';
       countParams = [new Date(updated_since)];
       dataParams = [new Date(updated_since), limit, offset];
     } else {
       dataParams = [limit, offset];
     }
 
-    const countQuery = `SELECT COUNT(*) FROM contacts ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) FROM contacts c ${whereClause}`;
     const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].count);
 
     const dataQuery = updated_since
-      ? `SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts ${whereClause} ORDER BY updated_at DESC LIMIT $2 OFFSET $3`
-      : `SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts ORDER BY updated_at DESC LIMIT $1 OFFSET $2`;
+      ? `SELECT c.id, c.name, c.phone_raw, c.phone_normalized, c.created_by, c.created_at, c.updated_at, u.name as creator_name 
+         FROM contacts c 
+         LEFT JOIN users u ON c.created_by = u.id 
+         ${whereClause} 
+         ORDER BY c.updated_at DESC LIMIT $2 OFFSET $3`
+      : `SELECT c.id, c.name, c.phone_raw, c.phone_normalized, c.created_by, c.created_at, c.updated_at, u.name as creator_name 
+         FROM contacts c 
+         LEFT JOIN users u ON c.created_by = u.id 
+         ORDER BY c.updated_at DESC LIMIT $1 OFFSET $2`;
 
     const result = await pool.query(dataQuery, dataParams);
 
@@ -62,7 +69,11 @@ router.get('/search', async (req, res) => {
     const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(
-      'SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts WHERE name ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+      `SELECT c.id, c.name, c.phone_raw, c.phone_normalized, c.created_by, c.created_at, c.updated_at, u.name as creator_name 
+       FROM contacts c 
+       LEFT JOIN users u ON c.created_by = u.id 
+       WHERE c.name ILIKE $1 
+       ORDER BY c.created_at DESC LIMIT $2 OFFSET $3`,
       [`%${q}%`, limit, offset]
     );
 
@@ -286,7 +297,7 @@ router.post('/batch', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, phone_raw } = req.body;
+    const { name, phone_raw, created_by } = req.body;
 
     if (!name || !phone_raw) {
       return res.status(400).json({ error: 'Name and phone_raw are required' });
@@ -302,17 +313,29 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Contact not found' });
     }
 
-    if (ownershipCheck.rows[0].created_by !== req.user.id) {
+    // Check ownership (Admin can update anyone's contact)
+    if (ownershipCheck.rows[0].created_by !== req.user.id && !req.user.is_admin) {
       return res.status(403).json({ error: 'You can only update your own contacts' });
     }
 
     // Normalize phone
     const normalizedPhone = normalizePhoneNumber(phone_raw);
 
-    const result = await pool.query(
-      'UPDATE contacts SET name = $1, phone_raw = $2, phone_normalized = $3, updated_at = NOW() WHERE id = $4 RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
-      [name, phone_raw, normalizedPhone, id]
-    );
+    let query = 'UPDATE contacts SET name = $1, phone_raw = $2, phone_normalized = $3, updated_at = NOW()';
+    let params = [name, phone_raw, normalizedPhone];
+    let paramIndex = 4;
+
+    // Allow admin to change creator
+    if (created_by && req.user.is_admin) {
+      query += `, created_by = $${paramIndex}`;
+      params.push(created_by);
+      paramIndex++;
+    }
+
+    query += ` WHERE id = $${paramIndex} RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at`;
+    params.push(id);
+
+    const result = await pool.query(query, params);
 
     res.json({ contact: result.rows[0] });
   } catch (error) {
@@ -336,7 +359,8 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Contact not found' });
     }
 
-    if (ownershipCheck.rows[0].created_by !== req.user.id) {
+    // Check ownership (Admin can delete anyone's contact)
+    if (ownershipCheck.rows[0].created_by !== req.user.id && !req.user.is_admin) {
       return res.status(403).json({ error: 'You can only delete your own contacts' });
     }
 
