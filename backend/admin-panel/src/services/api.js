@@ -91,4 +91,23 @@ export const api = {
         }
         return response.json();
     },
+    exportContacts: async () => {
+        const response = await fetch(`${API_BASE}/contacts/export`, {
+            headers: getAuthHeader(),
+        });
+        if (!response.ok) throw new Error('Failed to export contacts');
+        return response.blob();
+    },
+    importContacts: async (contacts) => {
+        const response = await fetch(`${API_BASE}/contacts/batch`, {
+            method: 'POST',
+            headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contacts }),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to import contacts');
+        }
+        return response.json();
+    },
 };

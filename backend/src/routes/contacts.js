@@ -373,4 +373,37 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// GET /contacts/export - Export all contacts as CSV
+router.get('/export', async (req, res) => {
+  try {
+    // Fetch all contacts with user information
+    const result = await pool.query(`
+      SELECT c.name, c.phone_raw, u.name as creator_name, c.created_at
+      FROM contacts c
+      LEFT JOIN users u ON c.created_by = u.id
+      ORDER BY c.created_at DESC
+    `);
+
+    // Generate CSV
+    const csvHeader = 'Name,Phone,Created By,Created At\n';
+    const csvRows = result.rows.map(contact => {
+      const name = `"${contact.name.replace(/"/g, '""')}"`;
+      const phone = contact.phone_raw;
+      const createdBy = contact.creator_name ? `"${contact.creator_name.replace(/"/g, '""')}"` : 'Unknown';
+      const createdAt = new Date(contact.created_at).toLocaleDateString();
+      return `${name},${phone},${createdBy},${createdAt}`;
+    }).join('\n');
+
+    const csv = csvHeader + csvRows;
+
+    // Set headers for CSV download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="contacts.csv"');
+    res.send(csv);
+  } catch (error) {
+    console.error('Export contacts error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

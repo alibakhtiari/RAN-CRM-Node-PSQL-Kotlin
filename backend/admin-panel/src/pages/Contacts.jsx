@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import ContactModal from '../components/ContactModal';
 import CreateContactModal from '../components/CreateContactModal';
+import ImportContactsModal from '../components/ImportContactsModal';
 
 export default function Contacts() {
     const [contacts, setContacts] = useState([]);
@@ -12,11 +13,12 @@ export default function Contacts() {
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [selectedContact, setSelectedContact] = useState(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(search);
-            setPage(1); // Reset to page 1 on search
+            setPage(1);
         }, 500);
         return () => clearTimeout(timer);
     }, [search]);
@@ -48,11 +50,27 @@ export default function Contacts() {
         }
     };
 
+    const handleExport = async () => {
+        try {
+            const blob = await api.exportContacts();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `contacts-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            alert(error.message);
+        }
+    };
+
     return (
         <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="text-lg font-medium text-gray-900">Contacts</h3>
-                <div className="flex gap-4">
+                <div className="flex gap-2">
                     <input
                         type="text"
                         placeholder="Search contacts..."
@@ -60,6 +78,18 @@ export default function Contacts() {
                         onChange={(e) => setSearch(e.target.value)}
                         className="p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    <button
+                        onClick={() => setShowImportModal(true)}
+                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                    >
+                        Import
+                    </button>
+                    <button
+                        onClick={handleExport}
+                        className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+                    >
+                        Export
+                    </button>
                     <button
                         onClick={() => setShowCreateModal(true)}
                         className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -141,6 +171,13 @@ export default function Contacts() {
                 <CreateContactModal
                     onClose={() => setShowCreateModal(false)}
                     onCreate={loadContacts}
+                />
+            )}
+
+            {showImportModal && (
+                <ImportContactsModal
+                    onClose={() => setShowImportModal(false)}
+                    onImport={loadContacts}
                 />
             )}
         </div>
