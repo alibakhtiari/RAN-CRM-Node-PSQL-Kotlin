@@ -5,14 +5,20 @@ import android.content.SharedPreferences
 
 class PreferenceManager(context: Context) {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences =
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     companion object {
         private const val PREFS_NAME = "crm_prefs"
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_LAST_SYNC_CONTACTS = "last_sync_contacts"
         private const val KEY_LAST_SYNC_CALLS = "last_sync_calls"
+        private const val KEY_USER_ID = "user_id"
     }
+
+    var userId: String?
+        get() = prefs.getString(KEY_USER_ID, null)
+        set(value) = prefs.edit().putString(KEY_USER_ID, value).apply()
 
     var authToken: String?
         get() = prefs.getString(KEY_AUTH_TOKEN, null)

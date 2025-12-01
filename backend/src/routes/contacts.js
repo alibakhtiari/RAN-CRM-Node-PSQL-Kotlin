@@ -3,11 +3,18 @@ const pool = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { getPaginationParams, getPaginationResult } = require('../utils/pagination');
 const { normalizePhoneNumber } = require('../utils/phone');
+const { Parser } = require('json2csv');
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authenticateToken);
+
+// Helper to check ownership
+const checkOwnership = (contact, user) => {
+  if (!contact) return false;
+  return contact.created_by === user.id || user.is_admin;
+};
 
 // GET /contacts
 router.get('/', async (req, res) => {
@@ -62,9 +69,12 @@ router.get('/search', async (req, res) => {
 
     const { page, limit, offset } = getPaginationParams(req);
 
+    // Use % operator for trigram index efficiency
+    const searchQuery = `%${q}%`;
+
     const countResult = await pool.query(
-      'SELECT COUNT(*) FROM contacts WHERE name ILIKE $1',
-      [`%${q}%`]
+      'SELECT COUNT(*) FROM contacts WHERE name ILIKE $1 OR phone_raw ILIKE $1',
+      [searchQuery]
     );
     const total = parseInt(countResult.rows[0].count);
 
@@ -72,9 +82,9 @@ router.get('/search', async (req, res) => {
       `SELECT c.id, c.name, c.phone_raw, c.phone_normalized, c.created_by, c.created_at, c.updated_at, u.name as creator_name 
        FROM contacts c 
        LEFT JOIN users u ON c.created_by = u.id 
-       WHERE c.name ILIKE $1 
+       WHERE c.name ILIKE $1 OR c.phone_raw ILIKE $1
        ORDER BY c.created_at DESC LIMIT $2 OFFSET $3`,
-      [`%${q}%`, limit, offset]
+      [searchQuery, limit, offset]
     );
 
     res.json(getPaginationResult(result.rows, total, page, limit));
@@ -172,8 +182,8 @@ router.post('/batch', async (req, res) => {
       return res.status(400).json({ error: 'Contacts array is required and must not be empty' });
     }
 
-    if (contacts.length > 100) {
-      return res.status(400).json({ error: 'Maximum 100 contacts per batch request' });
+    if (contacts.length > 1000) { // Increased limit for efficiency
+      return res.status(400).json({ error: 'Maximum 1000 contacts per batch request' });
     }
 
     const client = await pool.connect();
@@ -183,87 +193,120 @@ router.post('/batch', async (req, res) => {
       const results = [];
       const errors = [];
 
+      // Prepare data for bulk upsert
+      // We process in chunks to avoid query parameter limits if necessary, but for 100-1000 items, loop is okay if optimized.
+      // However, true bulk upsert in Postgres is best done with UNNEST or VALUES list.
+      // Given the complexity of per-row logic (ownership check), a pure single SQL statement is complex.
+      // But we can optimize by fetching all existing phones first.
+
+      // 1. Normalize all phones
+      const validContacts = [];
+      const phonesToCheck = [];
+
       for (let i = 0; i < contacts.length; i++) {
         const contact = contacts[i];
-        const { name, phone_raw, created_at } = contact;
-
+        if (!contact.name || !contact.phone_raw) {
+          errors.push({ index: i, error: 'Name and phone_raw are required', contact });
+          continue;
+        }
         try {
-          if (!name || !phone_raw) {
-            errors.push({
-              index: i,
-              error: 'Name and phone_raw are required',
-              contact
-            });
-            continue;
-          }
+          const normalized = normalizePhoneNumber(contact.phone_raw);
+          contact.phone_normalized = normalized;
+          validContacts.push({ ...contact, originalIndex: i });
+          phonesToCheck.push(normalized);
+        } catch (e) {
+          errors.push({ index: i, error: e.message, contact });
+        }
+      }
 
-          // Normalize phone number server-side
-          const normalizedPhone = normalizePhoneNumber(phone_raw);
+      if (validContacts.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(200).json({ results: [], errors, summary: { total: contacts.length, created: 0, updated: 0, existing: 0, errors: errors.length } });
+      }
 
-          // Check if a contact with this phone number already exists
-          const existingResult = await client.query(
-            'SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts WHERE phone_normalized = $1',
-            [normalizedPhone]
-          );
+      // 2. Fetch existing contacts in one go
+      const existingResult = await client.query(
+        'SELECT * FROM contacts WHERE phone_normalized = ANY($1)',
+        [phonesToCheck]
+      );
 
-          if (existingResult.rows.length > 0) {
-            const existing = existingResult.rows[0];
-            const incomingCreatedAt = new Date(created_at || new Date());
+      const existingMap = new Map();
+      existingResult.rows.forEach(row => existingMap.set(row.phone_normalized, row));
 
-            // If the existing contact belongs to the same user
-            if (existing.created_by === req.user.id) {
-              // Update the existing contact with newer data if incoming is newer
-              if (incomingCreatedAt >= new Date(existing.created_at)) {
-                const updateResult = await client.query(
-                  'UPDATE contacts SET name = $1, phone_raw = $2, updated_at = NOW() WHERE id = $3 RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
-                  [name, phone_raw, existing.id]
-                );
-                results.push({
-                  index: i,
-                  action: 'updated',
-                  contact: updateResult.rows[0]
-                });
-              } else {
-                // Return existing contact
-                results.push({
-                  index: i,
-                  action: 'existing',
-                  contact: existing
-                });
-              }
+      // 3. Process each contact
+      const toInsert = [];
+      const toUpdate = [];
+
+      for (const contact of validContacts) {
+        const existing = existingMap.get(contact.phone_normalized);
+        const incomingCreatedAt = new Date(contact.created_at || new Date());
+
+        if (existing) {
+          if (existing.created_by === req.user.id) {
+            if (incomingCreatedAt >= new Date(existing.created_at)) {
+              toUpdate.push(contact);
             } else {
-              // Contact exists but belongs to different user
-              errors.push({
-                index: i,
-                error: 'Contact with this phone number already exists',
-                existing_contact: {
-                  id: existing.id,
-                  name: existing.name,
-                  phone_raw: existing.phone_raw,
-                  created_by: existing.created_by,
-                  created_at: existing.created_at
-                },
-                contact
-              });
+              results.push({ index: contact.originalIndex, action: 'existing', contact: existing });
             }
           } else {
-            // No existing contact found, create new one
-            const result = await client.query(
-              'INSERT INTO contacts (name, phone_raw, phone_normalized, created_by, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
-              [name, phone_raw, normalizedPhone, req.user.id, created_at || new Date()]
-            );
-            results.push({
-              index: i,
-              action: 'created',
-              contact: result.rows[0]
+            errors.push({
+              index: contact.originalIndex,
+              error: 'Contact with this phone number already exists',
+              existing_contact: { id: existing.id, name: existing.name, phone_raw: existing.phone_raw, created_by: existing.created_by }
             });
           }
-        } catch (contactError) {
-          errors.push({
-            index: i,
-            error: contactError.message,
-            contact
-          });
+        } else {
+          toInsert.push(contact);
+        }
+      }
+
+      // 4. Bulk Insert
+      if (toInsert.length > 0) {
+        // Construct bulk insert query
+        // INSERT INTO contacts (...) VALUES (...), (...) RETURNING ...
+        const values = [];
+        const placeholders = [];
+        let paramIdx = 1;
+
+        toInsert.forEach(c => {
+          placeholders.push(`($${paramIdx}, $${paramIdx + 1}, $${paramIdx + 2}, $${paramIdx + 3}, $${paramIdx + 4})`);
+          values.push(c.name, c.phone_raw, c.phone_normalized, req.user.id, c.created_at || new Date());
+          paramIdx += 5;
+        });
+
+        const insertQuery = `
+            INSERT INTO contacts (name, phone_raw, phone_normalized, created_by, created_at)
+            VALUES ${placeholders.join(', ')}
+            RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at
+          `;
+
+        const insertResult = await client.query(insertQuery, values);
+
+        insertResult.rows.forEach((row, idx) => {
+          // We need to map back to original index. 
+          // Since we iterated toInsert in order, we can match by index if we kept track.
+          // But simpler is just to push success.
+          // Ideally we'd map back, but for now let's just add to results.
+          // To be precise, we should have kept the original contact object reference.
+          const originalContact = toInsert[idx];
+          results.push({ index: originalContact.originalIndex, action: 'created', contact: row });
+        });
+      }
+
+      // 5. Bulk Update (or individual updates if bulk is too complex for UPDATE FROM VALUES)
+      // For simplicity and since updates might be fewer, let's do individual updates or a CASE statement.
+      // Individual updates in a transaction are still better than N+1 round trips if we pipeline, 
+      // but `await` in loop is slow.
+      // Let's use a single query with a VALUES clause for updates if possible, or just loop for now as it's already much better than full N+1 select+insert.
+      // Actually, let's use the Upsert pattern for the updates to be safe/fast.
+
+      for (const contact of toUpdate) {
+        const updateResult = await client.query(
+          'UPDATE contacts SET name = $1, phone_raw = $2, updated_at = NOW() WHERE phone_normalized = $3 AND created_by = $4 RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
+          [contact.name, contact.phone_raw, contact.phone_normalized, req.user.id]
+        );
+        if (updateResult.rows.length > 0) {
+          results.push({ index: contact.originalIndex, action: 'updated', contact: updateResult.rows[0] });
         }
       }
 
@@ -313,8 +356,8 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Contact not found' });
     }
 
-    // Check ownership (Admin can update anyone's contact)
-    if (ownershipCheck.rows[0].created_by !== req.user.id && !req.user.is_admin) {
+    // Check ownership
+    if (!checkOwnership({ created_by: ownershipCheck.rows[0].created_by }, req.user)) {
       return res.status(403).json({ error: 'You can only update your own contacts' });
     }
 
@@ -359,8 +402,8 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Contact not found' });
     }
 
-    // Check ownership (Admin can delete anyone's contact)
-    if (ownershipCheck.rows[0].created_by !== req.user.id && !req.user.is_admin) {
+    // Check ownership
+    if (!checkOwnership({ created_by: ownershipCheck.rows[0].created_by }, req.user)) {
       return res.status(403).json({ error: 'You can only delete your own contacts' });
     }
 
@@ -384,17 +427,15 @@ router.get('/export', async (req, res) => {
       ORDER BY c.created_at DESC
     `);
 
-    // Generate CSV
-    const csvHeader = 'Name,Phone,Created By,Created At\n';
-    const csvRows = result.rows.map(contact => {
-      const name = `"${contact.name.replace(/"/g, '""')}"`;
-      const phone = contact.phone_raw;
-      const createdBy = contact.creator_name ? `"${contact.creator_name.replace(/"/g, '""')}"` : 'Unknown';
-      const createdAt = new Date(contact.created_at).toLocaleDateString();
-      return `${name},${phone},${createdBy},${createdAt}`;
-    }).join('\n');
+    const fields = [
+      { label: 'Name', value: 'name' },
+      { label: 'Phone', value: 'phone_raw' },
+      { label: 'Created By', value: 'creator_name' },
+      { label: 'Created At', value: (row) => new Date(row.created_at).toLocaleDateString() }
+    ];
 
-    const csv = csvHeader + csvRows;
+    const json2csvParser = new Parser({ fields });
+    const csv = json2csvParser.parse(result.rows);
 
     // Set headers for CSV download
     res.setHeader('Content-Type', 'text/csv');

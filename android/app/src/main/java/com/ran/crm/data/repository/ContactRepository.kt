@@ -1,118 +1,123 @@
 package com.ran.crm.data.repository
 
-import com.ran.crm.data.local.dao.ContactDao
-import com.ran.crm.data.local.entity.Contact
-import com.ran.crm.data.remote.ApiClient
-import com.ran.crm.data.remote.model.BatchContactRequest
-import com.ran.crm.data.remote.model.BatchContactData
-import com.ran.crm.data.remote.model.CreateContactRequest
-import com.ran.crm.data.remote.safeApiCall
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import java.util.*
-import java.text.SimpleDateFormat
 import com.ran.crm.data.local.PreferenceManager
+import com.ran.crm.data.local.dao.ContactDao
+import com.ran.crm.data.local.entity.Contact
+import com.ran.crm.data.remote.ApiClient
+import com.ran.crm.data.remote.model.BatchContactData
+import com.ran.crm.data.remote.model.BatchContactRequest
+import com.ran.crm.data.remote.model.CreateContactRequest
+import com.ran.crm.data.remote.safeApiCall
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlinx.coroutines.flow.Flow
 
 class ContactRepository(
-    private val contactDao: ContactDao,
-    private val preferenceManager: PreferenceManager
+        private val contactDao: ContactDao,
+        private val preferenceManager: PreferenceManager
 ) {
 
     fun getAllContacts(): Flow<List<Contact>> = contactDao.getAllContacts()
 
     fun getAllContactsPaged(): Flow<PagingData<Contact>> {
         return Pager(
-            config = PagingConfig(
-                pageSize = 20,
-                enablePlaceholders = false,
-                prefetchDistance = 5
-            ),
-            pagingSourceFactory = { contactDao.getAllContactsPaged() }
-        ).flow
+                        config =
+                                PagingConfig(
+                                        pageSize = 20,
+                                        enablePlaceholders = false,
+                                        prefetchDistance = 5
+                                ),
+                        pagingSourceFactory = { contactDao.getAllContactsPaged() }
+                )
+                .flow
     }
 
     fun searchContacts(query: String): Flow<List<Contact>> = contactDao.searchContacts(query)
 
     fun searchContactsPaged(query: String): Flow<PagingData<Contact>> {
         return Pager(
-            config = PagingConfig(
-                pageSize = 20,
-                enablePlaceholders = false,
-                prefetchDistance = 5
-            ),
-            pagingSourceFactory = { contactDao.searchContactsPaged(query) }
-        ).flow
+                        config =
+                                PagingConfig(
+                                        pageSize = 20,
+                                        enablePlaceholders = false,
+                                        prefetchDistance = 5
+                                ),
+                        pagingSourceFactory = { contactDao.searchContactsPaged(query) }
+                )
+                .flow
     }
 
     suspend fun getContactById(id: String): Contact? = contactDao.getContactById(id)
 
     suspend fun getContactByPhoneNormalized(phoneNormalized: String): Contact? =
-        contactDao.getContactByPhoneNormalized(phoneNormalized)
+            contactDao.getContactByPhoneNormalized(phoneNormalized)
 
     suspend fun insertContacts(contacts: List<Contact>) = contactDao.insertContacts(contacts)
 
     suspend fun insertContact(contact: Contact) = contactDao.insertContact(contact)
 
     suspend fun updateContact(contact: Contact) {
-        // Update locally
-        contactDao.updateContact(contact)
-        
-        // Update remotely
-        val request = CreateContactRequest(
-            name = contact.name,
-            phone_raw = contact.phoneRaw,
-            phone_normalized = contact.phoneNormalized,
-            created_at = contact.createdAt
-        )
-        
+        // Update locally and mark as dirty
+        val dirtyContact = contact.copy(syncStatus = 1)
+        contactDao.updateContact(dirtyContact)
+
+        // Try to update remotely immediately (best effort)
         try {
-            ApiClient.apiService.updateContact(contact.id, request)
+            val request =
+                    CreateContactRequest(
+                            name = contact.name,
+                            phone_raw = contact.phoneRaw,
+                            phone_normalized = contact.phoneNormalized,
+                            created_at = contact.createdAt
+                    )
+            val result = safeApiCall { ApiClient.apiService.updateContact(contact.id, request) }
+            if (result is com.ran.crm.data.remote.ApiResult.Success) {
+                contactDao.markAsSynced(contact.id)
+            }
         } catch (e: Exception) {
-            // If offline, this will fail. Ideally we should queue this.
-            // For now, we'll just log it or rely on next sync if we mark it as dirty.
-            // Since we don't have a dirty flag in the entity, we might miss this update if offline.
-            // However, the requirement says "delta sync", so we should probably rely on `updatedAt`.
-            // But `updateContact` API is direct.
-            // Let's assume for now we just try to update.
+            // Failed to update remotely, but it's marked as dirty locally.
+            // SyncAdapter will pick it up later.
+            com.ran.crm.utils.SyncLogger.log(
+                    "Repo: Update failed, marked as dirty. Error: ${e.message}"
+            )
         }
     }
 
     suspend fun deleteContact(contact: Contact) {
         // Delete locally
         contactDao.deleteContact(contact)
-        
+
         // Delete remotely
         try {
             ApiClient.apiService.deleteContact(contact.id)
         } catch (e: Exception) {
-            // Handle error
+            // If offline, we can't delete remotely.
+            com.ran.crm.utils.SyncLogger.log("Repo: Delete failed. Error: ${e.message}")
         }
     }
 
     suspend fun getContactsUpdatedSince(since: String): List<Contact> =
-        contactDao.getContactsUpdatedSince(since)
-
-
-    // syncContacts removed. Logic moved to SyncManager.
-
-    // uploadContactsBatch removed. Logic should be moved to SyncManager if needed.
+            contactDao.getContactsUpdatedSince(since)
 
     /**
-     * Performs a full sync download:
-     * 1. Fetches ALL contacts from server (paginated).
-     * 2. Updates/Inserts them into local DB.
-     * 3. Deletes any local contacts NOT present in the server list.
+     * Performs a full sync download using Mark and Sweep to avoid memory issues:
+     * 1. Mark all local contacts as pending deletion (sync_status = 2).
+     * 2. Fetch ALL contacts from server (paginated).
+     * 3. For each batch, Insert/Update local DB and unmark pending deletion (set sync_status = 0).
+     * 4. Delete all remaining contacts with sync_status = 2.
      */
     suspend fun performFullSyncDownload() {
         var page = 1
         val limit = 50
-        val allServerContactIds = mutableSetOf<String>()
         var hasMore = true
 
-        com.ran.crm.utils.SyncLogger.log("Repo: Starting Full Download")
+        com.ran.crm.utils.SyncLogger.log("Repo: Starting Full Download (Mark and Sweep)")
+
+        // 1. Mark all as pending deletion
+        contactDao.markAllPendingDeletion()
 
         while (hasMore) {
             val result = safeApiCall {
@@ -123,14 +128,18 @@ class ContactRepository(
                 is com.ran.crm.data.remote.ApiResult.Success -> {
                     val response = result.data
                     val contacts = response.data
-                    
-                    com.ran.crm.utils.SyncLogger.log("Repo: Fetched page $page, count: ${contacts.size}")
+
+                    com.ran.crm.utils.SyncLogger.log(
+                            "Repo: Fetched page $page, count: ${contacts.size}"
+                    )
 
                     if (contacts.isNotEmpty()) {
-                        insertContacts(contacts)
-                        allServerContactIds.addAll(contacts.map { it.id })
+                        // 2. Insert/Update and Unmark
+                        // We map server contacts to local entities with syncStatus = 0
+                        val entities = contacts.map { it.copy(syncStatus = 0) }
+                        contactDao.insertContacts(entities)
                     }
-                    
+
                     if (contacts.size < limit) {
                         hasMore = false
                     } else {
@@ -143,18 +152,9 @@ class ContactRepository(
             }
         }
 
-        // Deletion Logic (Server is Truth)
-        val localContacts = contactDao.getAllContacts().first()
-        val contactsToDelete = localContacts.filter { it.id !in allServerContactIds }
-        
-        if (contactsToDelete.isNotEmpty()) {
-            com.ran.crm.utils.SyncLogger.log("Repo: Deleting ${contactsToDelete.size} local contacts not on server")
-            contactsToDelete.forEach { contact ->
-                contactDao.deleteContact(contact)
-            }
-        } else {
-            com.ran.crm.utils.SyncLogger.log("Repo: No local contacts to delete")
-        }
+        // 3. Delete remaining pending deletion
+        contactDao.deletePendingDeletion()
+        com.ran.crm.utils.SyncLogger.log("Repo: Full sync cleanup complete")
 
         updateLastSyncTime()
     }
@@ -163,19 +163,19 @@ class ContactRepository(
      * Performs a delta sync download:
      * 1. Fetches contacts updated since last sync.
      * 2. Updates/Inserts them.
-     * Note: Delta sync typically doesn't handle deletions unless the API returns "deleted" records.
-     * If the API doesn't support soft-deletes, delta sync might miss deletions.
-     * For robustness, we might want to periodically force full sync.
      */
     suspend fun performDeltaSyncDownload() {
         val lastSyncTime = preferenceManager.lastSyncContacts
-        val since = if (lastSyncTime > 0) {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date(lastSyncTime))
-        } else {
-            // If no last sync time, fallback to full sync
-            performFullSyncDownload()
-            return
-        }
+        val since =
+                if (lastSyncTime > 0) {
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+                            .apply { timeZone = TimeZone.getTimeZone("UTC") }
+                            .format(Date(lastSyncTime))
+                } else {
+                    // If no last sync time, fallback to full sync
+                    performFullSyncDownload()
+                    return
+                }
 
         com.ran.crm.utils.SyncLogger.log("Repo: Starting Delta Download (since $since)")
 
@@ -192,12 +192,15 @@ class ContactRepository(
                 is com.ran.crm.data.remote.ApiResult.Success -> {
                     val response = result.data
                     val contacts = response.data
-                    
+
                     if (contacts.isNotEmpty()) {
-                        insertContacts(contacts)
-                        com.ran.crm.utils.SyncLogger.log("Repo: Delta fetched ${contacts.size} contacts")
+                        val entities = contacts.map { it.copy(syncStatus = 0) }
+                        contactDao.insertContacts(entities)
+                        com.ran.crm.utils.SyncLogger.log(
+                                "Repo: Delta fetched ${contacts.size} contacts"
+                        )
                     }
-                    
+
                     if (contacts.size < limit) {
                         hasMore = false
                     } else {
@@ -209,42 +212,100 @@ class ContactRepository(
                 }
             }
         }
-        
+
         updateLastSyncTime()
     }
 
+    suspend fun uploadDirtyContacts() {
+        val dirtyContacts = contactDao.getDirtyContacts()
+        if (dirtyContacts.isEmpty()) return
+
+        com.ran.crm.utils.SyncLogger.log("Repo: Uploading ${dirtyContacts.size} dirty contacts")
+
+        val chunks = dirtyContacts.chunked(100)
+
+        for (chunk in chunks) {
+            val batchRequest =
+                    BatchContactRequest(
+                            contacts =
+                                    chunk.map {
+                                        BatchContactData(
+                                                name = it.name,
+                                                phone_raw = it.phoneRaw,
+                                                created_at = it.createdAt
+                                        )
+                                    }
+                    )
+
+            try {
+                val result = safeApiCall { ApiClient.apiService.batchCreateContacts(batchRequest) }
+
+                if (result is com.ran.crm.data.remote.ApiResult.Success) {
+                    // Mark these as synced
+                    contactDao.markAsSynced(chunk.map { it.id })
+                    com.ran.crm.utils.SyncLogger.log("Repo: Batch upload success")
+                } else {
+                    com.ran.crm.utils.SyncLogger.log("Repo: Batch upload failed")
+                }
+            } catch (e: Exception) {
+                com.ran.crm.utils.SyncLogger.log("Repo: Batch upload exception: ${e.message}")
+            }
+        }
+    }
 
     suspend fun createContact(name: String, phoneRaw: String, phoneNormalized: String): Contact? {
-        val request = CreateContactRequest(
-            name = name,
-            phone_raw = phoneRaw,
-            phone_normalized = phoneNormalized,
-            created_at = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date())
-        )
+        // Create locally first (Offline First)
+        val newId = UUID.randomUUID().toString()
+        val now =
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+                        .apply { timeZone = TimeZone.getTimeZone("UTC") }
+                        .format(Date())
 
-        val result = safeApiCall {
-            ApiClient.apiService.createContact(request)
-        }
+        val userId = preferenceManager.userId ?: "local-pending"
+
+        val contact =
+                Contact(
+                        id = newId,
+                        name = name,
+                        phoneRaw = phoneRaw,
+                        phoneNormalized = phoneNormalized,
+                        createdBy = userId,
+                        createdAt = now,
+                        updatedAt = now,
+                        syncStatus = 1 // Dirty
+                )
+
+        contactDao.insertContact(contact)
+
+        // Try to upload immediately
+        val request =
+                CreateContactRequest(
+                        name = name,
+                        phone_raw = phoneRaw,
+                        phone_normalized = phoneNormalized,
+                        created_at = now
+                )
+
+        val result = safeApiCall { ApiClient.apiService.createContact(request) }
 
         return when (result) {
             is com.ran.crm.data.remote.ApiResult.Success -> {
-                val contact = result.data.contact
-                insertContact(contact)
-                contact
+                val serverContact = result.data.contact
+                contactDao.deleteContactById(newId) // Delete temporary local
+                contactDao.insertContact(serverContact.copy(syncStatus = 0))
+                serverContact
             }
             is com.ran.crm.data.remote.ApiResult.Error -> {
                 if (result.code == 409) {
-                    // Conflict - contact already exists
-                    // Try to get existing contact
+                    // Conflict
                     getContactByPhoneNormalized(phoneNormalized)
                 } else {
-                    null
+                    // Return local contact (offline mode)
+                    contact
                 }
             }
         }
     }
-
-
 
     private suspend fun updateLastSyncTime() {
         preferenceManager.lastSyncContacts = System.currentTimeMillis()

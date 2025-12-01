@@ -1,0 +1,102 @@
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kaptGenerateStubsDebugKotlin UP-TO-DATE
+> Task :app:kaptDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:mergeDebugShaders UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :app:desugarDebugFileDependencies UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:mergeExtDexDebug UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:mergeDebugNativeLibs UP-TO-DATE
+> Task :app:stripDebugDebugSymbols UP-TO-DATE
+> Task :app:validateSigningDebug UP-TO-DATE
+> Task :app:writeDebugAppMetadata UP-TO-DATE
+> Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+
+> Task :app:compileDebugKotlin FAILED
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:24:41 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:24:60 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:24:62 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:24:67 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:25:41 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:25:58 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:25:60 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:26:33 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:26:34 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:27:25 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:27:45 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:27:47 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:27:47 Function declaration must have a name.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:27:80 Unresolved reference 'query'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:28:17 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:29:17 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:29:18 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:32:56 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:35:13 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:37:59 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:39:51 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:44:9 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:57:17 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:70:9 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:91:13 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:112:9 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:132:25 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:148:9 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:160:28 Unresolved reference 'preferenceManager'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:190:25 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:212:29 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:231:59 Unresolved reference 'name'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:232:64 Unresolved reference 'phoneRaw'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:233:65 Unresolved reference 'createdAt'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:243:21 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:243:51 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:243:60 Unresolved reference 'id'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:267:22 Unresolved reference 'preferenceManager'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:281:9 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:301:17 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:302:17 Unresolved reference 'contactDao'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:318:9 Unresolved reference 'preferenceManager'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/data/repository/ContactRepository.kt:320:1 Syntax error: Expecting a top level declaration.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/ui/screen/ContactsScreen.kt:41:27 Unresolved reference 'getAllContactsWithCreator'.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/ui/screen/ContactsScreen.kt:41:55 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///C:/Users/Alib/Documents/GitHub/RAN-CRM-Node-PSQL-Kotlin/android/app/src/main/java/com/ran/crm/ui/screen/ContactsScreen.kt:41:71 Cannot infer type for type parameter 'T'. Specify it explicitly.
+
+> Task :app:copyRoomSchemas NO-SOURCE
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 3s
+32 actionable tasks: 1 executed, 31 up-to-date

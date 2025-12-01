@@ -189,9 +189,9 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(1.dp)) {
+                Column(modifier = Modifier.padding(20.dp)) {
                     Text(text = "Permissions", style = MaterialTheme.typography.titleMedium)
-                    Spacer(modifier = Modifier.height(100.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Regular permissions
                     // Read refresh count to trigger recomposition
@@ -259,7 +259,7 @@ fun SettingsScreen(
                             }
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Open Settings Button
                     OutlinedButton(
@@ -286,7 +286,7 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Sync Section
             Card(

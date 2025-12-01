@@ -8,14 +8,9 @@ import com.ran.crm.data.local.dao.*
 import com.ran.crm.data.local.entity.*
 
 @Database(
-    entities = [
-        User::class,
-        Contact::class,
-        CallLog::class,
-        SyncAudit::class
-    ],
-    version = 3,
-    exportSchema = true
+        entities = [User::class, Contact::class, CallLog::class, SyncAudit::class],
+        version = 5,
+        exportSchema = true
 )
 abstract class CrmDatabase : RoomDatabase() {
 
@@ -26,21 +21,22 @@ abstract class CrmDatabase : RoomDatabase() {
     companion object {
         const val DATABASE_NAME = "crm_database"
 
-        @Volatile
-        private var INSTANCE: CrmDatabase? = null
+        @Volatile private var INSTANCE: CrmDatabase? = null
 
         fun getDatabase(context: Context): CrmDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    CrmDatabase::class.java,
-                    DATABASE_NAME
-                )
-                .fallbackToDestructiveMigration()
-                .build()
-                INSTANCE = instance
-                instance
-            }
+            return INSTANCE
+                    ?: synchronized(this) {
+                        val instance =
+                                Room.databaseBuilder(
+                                                context.applicationContext,
+                                                CrmDatabase::class.java,
+                                                DATABASE_NAME
+                                        )
+                                        .fallbackToDestructiveMigration()
+                                        .build()
+                        INSTANCE = instance
+                        instance
+                    }
         }
     }
 }

@@ -139,6 +139,68 @@ npm test     # Run tests
 - Use the standard Android development workflow
 - Tests: `./gradlew testDebugUnitTest`
 
+### Debugging
+
+**View App Logs (Only Errors):**
+```bash
+# Windows (PowerShell)
+adb logcat *:E | findstr "com.ran.crm"
+
+# Linux/Mac
+adb logcat *:E | grep "com.ran.crm"
+```
+
+**View All App Logs:**
+```bash
+# Windows (PowerShell)
+adb logcat | findstr "com.ran.crm"
+```
+
+### Build & Run Commands
+
+**Debug Mode:**
+```bash
+# Build and Install on connected device/emulator
+./gradlew installDebug
+
+# Build APK only (output: app/build/outputs/apk/debug/app-debug.apk)
+./gradlew assembleDebug
+```
+
+**Release Mode:**
+```bash
+# Build Signed Release APK
+./gradlew assembleRelease
+
+# Build Signed Release Bundle (AAB)
+./gradlew bundleRelease
+```
+
+**ABI Filtering (ARM64 Only):**
+To speed up builds or target specific hardware, you can filter ABIs in `app/build.gradle.kts`:
+```kotlin
+android {
+    // ...
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a") // Include only arm64-v8a
+            isUniversalApk = false
+        }
+    }
+}
+```
+Or use `ndk.abiFilters` in `defaultConfig`:
+```kotlin
+defaultConfig {
+    // ...
+    ndk {
+        abiFilters.add("arm64-v8a")
+    }
+}
+```
+
 ## Deployment
 
 ### Backend
