@@ -12,6 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ran.crm.R
@@ -33,7 +35,7 @@ fun ContactsScreen(
     var searchQuery by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
 
-    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         contactRepository.getAllContacts().collectLatest { contactList ->
@@ -48,7 +50,6 @@ fun ContactsScreen(
                     contacts
                 } else {
                     contacts.filter { contact ->
-                        // Advanced search: T9 + fuzzy matching
                         T9Utils.advancedSearch(contact.name, searchQuery) ||
                                 contact.phoneRaw.contains(searchQuery)
                     }
@@ -106,10 +107,48 @@ fun ContactsScreen(
                                 contact = contact,
                                 onContactClick = onContactClick,
                                 onCallClick = {
-                                    // Handle call action
+                                    val intent =
+                                            android.content.Intent(
+                                                            android.content.Intent.ACTION_DIAL
+                                                    )
+                                                    .apply {
+                                                        data =
+                                                                android.net.Uri.parse(
+                                                                        "tel:${contact.phoneRaw}"
+                                                                )
+                                                    }
+                                    context.startActivity(intent)
                                 },
                                 onMessageClick = {
-                                    // Handle message action
+                                    val intent =
+                                            android.content.Intent(
+                                                            android.content.Intent.ACTION_VIEW
+                                                    )
+                                                    .apply {
+                                                        data =
+                                                                android.net.Uri.parse(
+                                                                        "sms:${contact.phoneRaw}"
+                                                                )
+                                                    }
+                                    context.startActivity(intent)
+                                },
+                                onWhatsAppClick = {
+                                    try {
+                                        val phoneNumber = contact.phoneNormalized.replace("+", "")
+                                        val intent =
+                                                android.content.Intent(
+                                                                android.content.Intent.ACTION_VIEW
+                                                        )
+                                                        .apply {
+                                                            data =
+                                                                    android.net.Uri.parse(
+                                                                            "https://wa.me/$phoneNumber"
+                                                                    )
+                                                        }
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        // WhatsApp not installed or error
+                                    }
                                 }
                         )
                     }
@@ -124,13 +163,15 @@ fun ContactItem(
         contact: Contact,
         onContactClick: (Contact) -> Unit,
         onCallClick: () -> Unit,
-        onMessageClick: () -> Unit
+        onMessageClick: () -> Unit,
+        onWhatsAppClick: () -> Unit
 ) {
     Card(
             modifier =
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).clickable {
                         onContactClick(contact)
-                    }
+                    },
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -155,17 +196,26 @@ fun ContactItem(
                 )
             }
 
-            Row {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = onCallClick) {
                     Icon(
                             imageVector = Icons.Filled.Call,
-                            contentDescription = stringResource(R.string.call)
+                            contentDescription = stringResource(R.string.call),
+                            tint = MaterialTheme.colorScheme.primary
                     )
                 }
                 IconButton(onClick = onMessageClick) {
                     Icon(
                             imageVector = Icons.AutoMirrored.Filled.Message,
-                            contentDescription = stringResource(R.string.message)
+                            contentDescription = stringResource(R.string.message),
+                            tint = MaterialTheme.colorScheme.secondary
+                    )
+                }
+                IconButton(onClick = onWhatsAppClick) {
+                    Icon(
+                            painter = painterResource(id = R.drawable.ic_whatsapp),
+                            contentDescription = "WhatsApp",
+                            tint = androidx.compose.ui.graphics.Color(0xFF25D366)
                     )
                 }
             }

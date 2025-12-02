@@ -234,6 +234,19 @@ PORT=3000
 - Minimum API level: 24 (Android 7.0)
 - Target API level: 35 (Android 15)
 
+### UI Customization
+You can customize the predefined font/UI scale factors (Small, Medium, Large) in `android/app/src/main/java/com/ran/crm/ui/AppConfig.kt`:
+
+```kotlin
+object AppConfig {
+    // UI Scale Factors (affects both text size and spacing/padding)
+    const val SCALE_SMALL = 0.85f
+    const val SCALE_MEDIUM = 1.0f
+    const val SCALE_LARGE = 1.15f
+}
+```
+After changing these values, rebuild the app to see the effects.
+
 ## Testing
 
 ### Backend Tests

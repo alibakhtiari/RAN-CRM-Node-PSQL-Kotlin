@@ -276,18 +276,27 @@ fun SettingsScreen(
                         val currentScale = preferenceManager.fontScale
                         ThemeOption(
                                 label = "Small",
-                                selected = currentScale == 0.85f,
-                                onClick = { preferenceManager.fontScale = 0.85f }
+                                selected = currentScale == com.ran.crm.ui.AppConfig.SCALE_SMALL,
+                                onClick = {
+                                    preferenceManager.fontScale =
+                                            com.ran.crm.ui.AppConfig.SCALE_SMALL
+                                }
                         )
                         ThemeOption(
                                 label = "Medium",
-                                selected = currentScale == 1.0f,
-                                onClick = { preferenceManager.fontScale = 1.0f }
+                                selected = currentScale == com.ran.crm.ui.AppConfig.SCALE_MEDIUM,
+                                onClick = {
+                                    preferenceManager.fontScale =
+                                            com.ran.crm.ui.AppConfig.SCALE_MEDIUM
+                                }
                         )
                         ThemeOption(
                                 label = "Large",
-                                selected = currentScale == 1.15f,
-                                onClick = { preferenceManager.fontScale = 1.15f }
+                                selected = currentScale == com.ran.crm.ui.AppConfig.SCALE_LARGE,
+                                onClick = {
+                                    preferenceManager.fontScale =
+                                            com.ran.crm.ui.AppConfig.SCALE_LARGE
+                                }
                         )
                     }
                 }

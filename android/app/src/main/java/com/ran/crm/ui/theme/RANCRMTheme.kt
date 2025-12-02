@@ -79,36 +79,57 @@ fun RANCRMTheme(
         dynamicColor: Boolean = true,
         content: @Composable () -> Unit
 ) {
-    val colorScheme =
-            when {
-                dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                    val context = LocalContext.current
-                    if (darkTheme) dynamicDarkColorScheme(context)
-                    else dynamicLightColorScheme(context)
+        val colorScheme =
+                when {
+                        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                                val context = LocalContext.current
+                                if (darkTheme) dynamicDarkColorScheme(context)
+                                else dynamicLightColorScheme(context)
+                        }
+                        darkTheme -> DarkColorScheme
+                        else -> LightColorScheme
                 }
-                darkTheme -> DarkColorScheme
-                else -> LightColorScheme
-            }
 
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        val view = LocalView.current
+        if (!view.isInEditMode) {
+                SideEffect {
+                        val window = (view.context as Activity).window
+                        window.statusBarColor = colorScheme.primary.toArgb()
+                        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
+                                !darkTheme
+                }
         }
-    }
 
-    val currentDensity = androidx.compose.ui.platform.LocalDensity.current
-    val scaledDensity = androidx.compose.ui.unit.Density(currentDensity.density, fontScale)
+        val currentDensity = androidx.compose.ui.platform.LocalDensity.current
+        // Scale BOTH density (for dp) and fontScale (for sp) to affect spaces/padding and text
+        val scaledDensity =
+                androidx.compose.ui.unit.Density(
+                        density = currentDensity.density * fontScale,
+                        fontScale =
+                                currentDensity
+                                        .fontScale // Keep system font scale relative to our new
+                        // density, or just 1f if we want to override
+                        // system.
+                        // If we want "Small" to mean "Small everything", we scale density.
+                        // If we set fontScale here, it multiplies on top of density scaling for SP.
+                        // Let's keep fontScale as 1f (relative to new density) to scale everything
+                        // uniformly.
+                        // Actually, Density(density, fontScale) constructor:
+                        // sp to px = value * fontScale * density
+                        // dp to px = value * density
+                        // If we scale density by X:
+                        // dp -> X * density -> Scaled
+                        // sp -> fontScale * (X * density) -> Scaled
+                        // So just scaling density is enough to scale EVERYTHING uniformly.
+                        )
 
-    androidx.compose.runtime.CompositionLocalProvider(
-            androidx.compose.ui.platform.LocalDensity provides scaledDensity
-    ) {
-        MaterialTheme(
-                colorScheme = colorScheme,
-                typography = androidx.compose.material3.Typography(),
-                content = content
-        )
-    }
+        androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalDensity provides scaledDensity
+        ) {
+                MaterialTheme(
+                        colorScheme = colorScheme,
+                        typography = androidx.compose.material3.Typography(),
+                        content = content
+                )
+        }
 }
