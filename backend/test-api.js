@@ -136,22 +136,46 @@ async function runTests() {
         logTest('Create Contact', false, `Error: ${e.message}`);
     }
 
-    // Test 6: Batch Create Contacts
+    // Test 6: Batch Create Contacts (Upsert Test)
     try {
+        // We will try to update the contact created in Test 5 and add a new one
+        const randomPhone = `+1${Math.floor(Math.random() * 1000000000).toString().padStart(9, '0')}`;
+        const batchContacts = [
+            {
+                name: 'Batch New Contact',
+                phone_raw: randomPhone,
+                created_at: new Date().toISOString()
+            }
+        ];
+
+        if (createdContactId) {
+            batchContacts.push({
+                name: 'Updated via Batch', // New name
+                phone_raw: '+1234567890', // Same phone as Test 5 (should trigger update)
+                created_at: new Date(Date.now() + 10000).toISOString() // Newer timestamp
+            });
+        }
+
         const res = await makeRequest('POST', '/contacts/batch', {
-            contacts: [
-                { name: 'Batch Test 1', phone_raw: '+1111111111', created_at: new Date().toISOString() },
-                { name: 'Batch Test 2', phone_raw: '+2222222222', created_at: new Date().toISOString() }
-            ]
+            contacts: batchContacts
         }, authToken);
 
         if (res.status === 200) {
-            logTest('Batch Create Contacts', true, `Created/Updated ${res.data?.summary?.total || 0} contacts`);
+            const summary = res.data?.summary;
+            // Expect 1 created (new) and 1 updated (existing)
+            const expectedCreated = 1;
+            const expectedUpdated = createdContactId ? 1 : 0;
+
+            if (summary.created === expectedCreated && summary.updated === expectedUpdated) {
+                logTest('Batch Create Contacts (Upsert)', true, `Correctly created ${summary.created} and updated ${summary.updated}`);
+            } else {
+                logTest('Batch Create Contacts (Upsert)', false, `Mismatch: Expected ${expectedCreated} created, ${expectedUpdated} updated. Got: ${JSON.stringify(summary)}`);
+            }
         } else {
-            logTest('Batch Create Contacts', false, `Status: ${res.status}, Response: ${JSON.stringify(res.data)}`);
+            logTest('Batch Create Contacts (Upsert)', false, `Status: ${res.status}, Response: ${JSON.stringify(res.data)}`);
         }
     } catch (e) {
-        logTest('Batch Create Contacts', false, `Error: ${e.message}`);
+        logTest('Batch Create Contacts (Upsert)', false, `Error: ${e.message}`);
     }
 
     // Test 7: Update Contact
@@ -176,6 +200,20 @@ async function runTests() {
         logTest('Search Contacts', res.status === 200, `Found ${res.data?.data?.length || 0} contacts`);
     } catch (e) {
         logTest('Search Contacts', false, `Error: ${e.message}`);
+    }
+
+    // Test 8b: Fuzzy Search Contacts
+    try {
+        // Search for "Contac" (missing 't') to find "Contact"
+        const res = await makeRequest('GET', '/contacts/search?q=Contac', null, authToken);
+        const found = res.data?.data?.length || 0;
+        if (res.status === 200 && found > 0) {
+            logTest('Fuzzy Search Contacts', true, `Found ${found} contacts with typo "Contac"`);
+        } else {
+            logTest('Fuzzy Search Contacts', false, `Failed to find contacts with typo. Status: ${res.status}, Found: ${found}`);
+        }
+    } catch (e) {
+        logTest('Fuzzy Search Contacts', false, `Error: ${e.message}`);
     }
 
     // Test 9: Get Call Logs
@@ -249,6 +287,32 @@ async function runTests() {
         }
     } else {
         logWarning('Delete Contact', 'Skipped - no contact to delete');
+    }
+
+    // Test 13: CSV Export
+    try {
+        // Note: makeRequest parses JSON by default, but for CSV it might fail or return string if we handle it.
+        // Let's adjust makeRequest or just handle the string data if it fails to parse.
+        // Actually, my makeRequest implementation tries JSON.parse and returns raw data if it fails.
+        // So res.data will be the CSV string.
+        const res = await makeRequest('GET', '/contacts/export', null, authToken);
+
+        if (res.status === 200) {
+            const contentType = res.headers['content-type'];
+            const isCsv = contentType && contentType.includes('text/csv');
+            // Check for CSV headers
+            const hasHeaders = res.data && typeof res.data === 'string' && res.data.includes('"Name","Phone","Created By","Created At"');
+
+            if (isCsv && hasHeaders) {
+                logTest('CSV Export', true, 'Received valid CSV file');
+            } else {
+                logTest('CSV Export', false, `Invalid format. Content-Type: ${contentType}, Data start: ${typeof res.data === 'string' ? res.data.substring(0, 50) : 'Not a string'}...`);
+            }
+        } else {
+            logTest('CSV Export', false, `Status: ${res.status}`);
+        }
+    } catch (e) {
+        logTest('CSV Export', false, `Error: ${e.message}`);
     }
 
     // Summary

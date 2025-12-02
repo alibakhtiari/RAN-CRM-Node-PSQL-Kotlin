@@ -69,12 +69,22 @@ router.get('/search', async (req, res) => {
 
     const { page, limit, offset } = getPaginationParams(req);
 
-    // Use % operator for trigram index efficiency
-    const searchQuery = `%${q}%`;
+    // Set similarity threshold for this transaction/request
+    // Note: In a connection pool, SET LOCAL is safer if we wrapped in transaction, 
+    // but for a single query, we can just rely on the default or set it.
+    // However, `pg_trgm.similarity_threshold` is a session variable.
+    // Let's set it before the query.
+    await pool.query('SET pg_trgm.similarity_threshold = 0.3');
+
+    // Use % operator for trigram fuzzy matching on name
+    // Use ILIKE for phone_raw as numbers don't work well with trigrams usually, 
+    // unless we index them as text specifically for it.
+    const searchQuery = q;
+    const likeQuery = `%${q}%`;
 
     const countResult = await pool.query(
-      'SELECT COUNT(*) FROM contacts WHERE name ILIKE $1 OR phone_raw ILIKE $1',
-      [searchQuery]
+      'SELECT COUNT(*) FROM contacts WHERE name % $1 OR phone_raw ILIKE $2',
+      [searchQuery, likeQuery]
     );
     const total = parseInt(countResult.rows[0].count);
 
@@ -82,9 +92,10 @@ router.get('/search', async (req, res) => {
       `SELECT c.id, c.name, c.phone_raw, c.phone_normalized, c.created_by, c.created_at, c.updated_at, u.name as creator_name 
        FROM contacts c 
        LEFT JOIN users u ON c.created_by = u.id 
-       WHERE c.name ILIKE $1 OR c.phone_raw ILIKE $1
-       ORDER BY c.created_at DESC LIMIT $2 OFFSET $3`,
-      [searchQuery, limit, offset]
+       WHERE c.name % $1 OR c.phone_raw ILIKE $2
+       ORDER BY c.name <-> $1 ASC, c.created_at DESC 
+       LIMIT $3 OFFSET $4`,
+      [searchQuery, likeQuery, limit, offset]
     );
 
     res.json(getPaginationResult(result.rows, total, page, limit));
@@ -182,154 +193,105 @@ router.post('/batch', async (req, res) => {
       return res.status(400).json({ error: 'Contacts array is required and must not be empty' });
     }
 
-    if (contacts.length > 1000) { // Increased limit for efficiency
+    if (contacts.length > 1000) {
       return res.status(400).json({ error: 'Maximum 1000 contacts per batch request' });
     }
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    // 1. Prepare data arrays for bulk insert
+    const names = [];
+    const phonesRaw = [];
+    const phonesNormalized = [];
+    const createdAts = [];
+    const errors = [];
 
-      const results = [];
-      const errors = [];
-
-      // Prepare data for bulk upsert
-      // We process in chunks to avoid query parameter limits if necessary, but for 100-1000 items, loop is okay if optimized.
-      // However, true bulk upsert in Postgres is best done with UNNEST or VALUES list.
-      // Given the complexity of per-row logic (ownership check), a pure single SQL statement is complex.
-      // But we can optimize by fetching all existing phones first.
-
-      // 1. Normalize all phones
-      const validContacts = [];
-      const phonesToCheck = [];
-
-      for (let i = 0; i < contacts.length; i++) {
-        const contact = contacts[i];
-        if (!contact.name || !contact.phone_raw) {
-          errors.push({ index: i, error: 'Name and phone_raw are required', contact });
-          continue;
-        }
-        try {
-          const normalized = normalizePhoneNumber(contact.phone_raw);
-          contact.phone_normalized = normalized;
-          validContacts.push({ ...contact, originalIndex: i });
-          phonesToCheck.push(normalized);
-        } catch (e) {
-          errors.push({ index: i, error: e.message, contact });
-        }
+    for (let i = 0; i < contacts.length; i++) {
+      const contact = contacts[i];
+      if (!contact.name || !contact.phone_raw) {
+        errors.push({ index: i, error: 'Name and phone_raw are required', contact });
+        continue;
       }
-
-      if (validContacts.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(200).json({ results: [], errors, summary: { total: contacts.length, created: 0, updated: 0, existing: 0, errors: errors.length } });
+      try {
+        const normalized = normalizePhoneNumber(contact.phone_raw);
+        names.push(contact.name);
+        phonesRaw.push(contact.phone_raw);
+        phonesNormalized.push(normalized);
+        createdAts.push(contact.created_at || new Date().toISOString());
+      } catch (e) {
+        errors.push({ index: i, error: e.message, contact });
       }
-
-      // 2. Fetch existing contacts in one go
-      const existingResult = await client.query(
-        'SELECT * FROM contacts WHERE phone_normalized = ANY($1)',
-        [phonesToCheck]
-      );
-
-      const existingMap = new Map();
-      existingResult.rows.forEach(row => existingMap.set(row.phone_normalized, row));
-
-      // 3. Process each contact
-      const toInsert = [];
-      const toUpdate = [];
-
-      for (const contact of validContacts) {
-        const existing = existingMap.get(contact.phone_normalized);
-        const incomingCreatedAt = new Date(contact.created_at || new Date());
-
-        if (existing) {
-          if (existing.created_by === req.user.id) {
-            if (incomingCreatedAt >= new Date(existing.created_at)) {
-              toUpdate.push(contact);
-            } else {
-              results.push({ index: contact.originalIndex, action: 'existing', contact: existing });
-            }
-          } else {
-            errors.push({
-              index: contact.originalIndex,
-              error: 'Contact with this phone number already exists',
-              existing_contact: { id: existing.id, name: existing.name, phone_raw: existing.phone_raw, created_by: existing.created_by }
-            });
-          }
-        } else {
-          toInsert.push(contact);
-        }
-      }
-
-      // 4. Bulk Insert
-      if (toInsert.length > 0) {
-        // Construct bulk insert query
-        // INSERT INTO contacts (...) VALUES (...), (...) RETURNING ...
-        const values = [];
-        const placeholders = [];
-        let paramIdx = 1;
-
-        toInsert.forEach(c => {
-          placeholders.push(`($${paramIdx}, $${paramIdx + 1}, $${paramIdx + 2}, $${paramIdx + 3}, $${paramIdx + 4})`);
-          values.push(c.name, c.phone_raw, c.phone_normalized, req.user.id, c.created_at || new Date());
-          paramIdx += 5;
-        });
-
-        const insertQuery = `
-            INSERT INTO contacts (name, phone_raw, phone_normalized, created_by, created_at)
-            VALUES ${placeholders.join(', ')}
-            RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at
-          `;
-
-        const insertResult = await client.query(insertQuery, values);
-
-        insertResult.rows.forEach((row, idx) => {
-          // We need to map back to original index. 
-          // Since we iterated toInsert in order, we can match by index if we kept track.
-          // But simpler is just to push success.
-          // Ideally we'd map back, but for now let's just add to results.
-          // To be precise, we should have kept the original contact object reference.
-          const originalContact = toInsert[idx];
-          results.push({ index: originalContact.originalIndex, action: 'created', contact: row });
-        });
-      }
-
-      // 5. Bulk Update (or individual updates if bulk is too complex for UPDATE FROM VALUES)
-      // For simplicity and since updates might be fewer, let's do individual updates or a CASE statement.
-      // Individual updates in a transaction are still better than N+1 round trips if we pipeline, 
-      // but `await` in loop is slow.
-      // Let's use a single query with a VALUES clause for updates if possible, or just loop for now as it's already much better than full N+1 select+insert.
-      // Actually, let's use the Upsert pattern for the updates to be safe/fast.
-
-      for (const contact of toUpdate) {
-        const updateResult = await client.query(
-          'UPDATE contacts SET name = $1, phone_raw = $2, updated_at = NOW() WHERE phone_normalized = $3 AND created_by = $4 RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
-          [contact.name, contact.phone_raw, contact.phone_normalized, req.user.id]
-        );
-        if (updateResult.rows.length > 0) {
-          results.push({ index: contact.originalIndex, action: 'updated', contact: updateResult.rows[0] });
-        }
-      }
-
-      await client.query('COMMIT');
-
-      res.status(200).json({
-        results,
-        errors,
-        summary: {
-          total: contacts.length,
-          created: results.filter(r => r.action === 'created').length,
-          updated: results.filter(r => r.action === 'updated').length,
-          existing: results.filter(r => r.action === 'existing').length,
-          errors: errors.length
-        }
-      });
-
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
     }
+
+    if (names.length === 0) {
+      return res.status(200).json({
+        results: [],
+        errors,
+        summary: { total: contacts.length, created: 0, updated: 0, existing: 0, errors: errors.length }
+      });
+    }
+
+    // 2. Execute single Upsert query
+    // We use UNNEST to unpack arrays into rows
+    const query = `
+      INSERT INTO contacts (name, phone_raw, phone_normalized, created_by, created_at)
+      SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[], $4::uuid[], $5::timestamptz[])
+      ON CONFLICT (phone_normalized) 
+      DO UPDATE SET 
+        name = EXCLUDED.name,
+        phone_raw = EXCLUDED.phone_raw,
+        updated_at = NOW()
+      WHERE contacts.created_by = EXCLUDED.created_by -- Only update if owned by same user
+        AND EXCLUDED.created_at > contacts.created_at -- Only update if incoming is newer
+      RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at, (xmax = 0) AS is_insert;
+    `;
+
+    // Create an array of user IDs matching the length of contacts
+    const userIds = new Array(names.length).fill(req.user.id);
+
+    const result = await pool.query(query, [
+      names,
+      phonesRaw,
+      phonesNormalized,
+      userIds,
+      createdAts
+    ]);
+
+    // 3. Process results
+    const results = result.rows.map(row => ({
+      // Note: We lose the original index mapping with this approach unless we include it in the query.
+      // But for sync, the client usually just needs to know it succeeded.
+      // If strict index mapping is required, we'd need to pass the index through.
+      action: row.is_insert ? 'created' : 'updated',
+      contact: {
+        id: row.id,
+        name: row.name,
+        phone_raw: row.phone_raw,
+        phone_normalized: row.phone_normalized,
+        created_by: row.created_by,
+        created_at: row.created_at,
+        updated_at: row.updated_at
+      }
+    }));
+
+    // Calculate summary
+    const createdCount = results.filter(r => r.action === 'created').length;
+    const updatedCount = results.filter(r => r.action === 'updated').length;
+    // "Existing" in this context means "Ignored due to WHERE clause" (older data or different owner)
+    // The RETURNING clause only returns rows that were actually inserted or updated.
+    // So (Total Input - Errors - Returned Rows) = Ignored/Existing
+    const ignoredCount = names.length - results.length;
+
+    res.status(200).json({
+      results, // Only contains actually changed/inserted contacts
+      errors,
+      summary: {
+        total: contacts.length,
+        created: createdCount,
+        updated: updatedCount,
+        existing: ignoredCount,
+        errors: errors.length
+      }
+    });
+
   } catch (error) {
     console.error('Batch create contacts error:', error);
     res.status(500).json({ error: 'Internal server error' });

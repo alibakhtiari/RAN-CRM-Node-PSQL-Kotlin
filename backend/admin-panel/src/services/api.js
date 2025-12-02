@@ -18,6 +18,25 @@ export const api = {
         }
         return response.json();
     },
+    getMe: async () => {
+        const response = await fetch(`${API_BASE}/auth/me`, {
+            headers: getAuthHeader(),
+        });
+        if (!response.ok) throw new Error('Failed to load user info');
+        return response.json();
+    },
+    createUser: async (data) => {
+        const response = await fetch(`${API_BASE}/users`, {
+            method: 'POST',
+            headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to create user');
+        }
+        return response.json();
+    },
     getUsers: async () => {
         const response = await fetch(`${API_BASE}/users?limit=100`, {
             headers: getAuthHeader(),

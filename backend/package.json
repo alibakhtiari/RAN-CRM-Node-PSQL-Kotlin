@@ -25,7 +25,8 @@
     "jsonwebtoken": "^9.0.2",
     "libphonenumber-js": "^1.10.53",
     "node-fetch": "^2.7.0",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "http-proxy-middleware": "^2.0.6"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
