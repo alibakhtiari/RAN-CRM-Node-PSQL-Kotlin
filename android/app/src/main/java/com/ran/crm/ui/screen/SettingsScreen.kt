@@ -40,6 +40,7 @@ fun SettingsScreen(
                 val response = com.ran.crm.data.remote.ApiClient.apiService.healthCheck()
                 isServerConnected = response.status == "OK"
             } catch (e: Exception) {
+                android.util.Log.e("SettingsScreen", "Health check failed", e)
                 isServerConnected = false
             }
             kotlinx.coroutines.delay(30000) // Check every 30 seconds
@@ -353,7 +354,9 @@ fun SettingsScreen(
                     onClick = {
                         scope.launch {
                             preferenceManager.clear()
-                            navController.navigate("login") { popUpTo(0) }
+                            navController.navigate("login") {
+                                popUpTo(navController.graph.id) { inclusive = true }
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),

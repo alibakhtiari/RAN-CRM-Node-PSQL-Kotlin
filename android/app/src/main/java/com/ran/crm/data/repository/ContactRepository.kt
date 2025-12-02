@@ -208,7 +208,9 @@ class ContactRepository(
                     }
                 }
                 is com.ran.crm.data.remote.ApiResult.Error -> {
-                    throw Exception("Failed to download delta contacts: ${result.message}")
+                    val msg = "Failed to download delta contacts: ${result.message}"
+                    com.ran.crm.utils.SyncLogger.log(msg)
+                    throw Exception(msg)
                 }
             }
         }

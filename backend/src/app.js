@@ -15,6 +15,11 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' })); // For bulk uploads
 app.use(express.urlencoded({ extended: true }));
 
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 // Proxy /admin requests to the admin panel container

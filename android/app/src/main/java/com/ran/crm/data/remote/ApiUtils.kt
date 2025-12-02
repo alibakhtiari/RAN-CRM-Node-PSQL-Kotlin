@@ -1,7 +1,7 @@
 package com.ran.crm.data.remote
 
-import retrofit2.HttpException
 import java.io.IOException
+import retrofit2.HttpException
 
 suspend fun <T> safeApiCall(apiCall: suspend () -> T): ApiResult<T> {
     return try {
@@ -11,7 +11,16 @@ suspend fun <T> safeApiCall(apiCall: suspend () -> T): ApiResult<T> {
             401 -> ApiResult.Error(401, "Re-authentication required")
             403 -> ApiResult.Error(403, "Access denied")
             409 -> ApiResult.Error(409, "Data conflict - merge required")
-            else -> ApiResult.Error(e.code(), e.message())
+            else -> {
+                val errorBody = e.response()?.errorBody()?.string()
+                val message =
+                        if (!errorBody.isNullOrEmpty()) {
+                            "$errorBody (Code: ${e.code()})"
+                        } else {
+                            e.message()
+                        }
+                ApiResult.Error(e.code(), message)
+            }
         }
     } catch (e: IOException) {
         ApiResult.Error(-1, "Network error")
