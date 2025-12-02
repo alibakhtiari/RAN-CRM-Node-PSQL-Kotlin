@@ -58,7 +58,6 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
     private fun createForegroundInfo(): ForegroundInfo {
         val id = "crm_sync_channel"
         val title = "Syncing Data"
-        val cancel = "Cancel"
 
         // Create a Notification channel if necessary
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
