@@ -29,7 +29,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
-
 @Composable
 fun ContactDetailScreen(
         contactId: String,
@@ -114,20 +113,14 @@ fun ContactDetailScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                            text = contact.name,
-                                            style = MaterialTheme.typography.headlineSmall
+                                            text =
+                                                    "${contact.name} (${contact.creatorName ?: "Unknown"})",
+                                            style = MaterialTheme.typography.bodyLarge
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                             text = contact.phoneRaw,
                                             style = MaterialTheme.typography.bodyLarge
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                            text =
-                                                    "Created by: ${contact.creatorName ?: "Unknown"}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
 
@@ -137,7 +130,7 @@ fun ContactDetailScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     // Call Button
-                                    FilledIconButton(
+                                    IconButton(
                                             onClick = {
                                                 val intent =
                                                         Intent(Intent.ACTION_DIAL).apply {
@@ -153,12 +146,13 @@ fun ContactDetailScreen(
                                         Icon(
                                                 imageVector = Icons.Filled.Call,
                                                 contentDescription = stringResource(R.string.call),
-                                                modifier = Modifier.size(20.dp)
+                                                modifier = Modifier.size(24.dp),
+                                                tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
 
                                     // Message Button
-                                    FilledIconButton(
+                                    IconButton(
                                             onClick = {
                                                 val intent =
                                                         Intent(Intent.ACTION_VIEW).apply {
@@ -169,27 +163,19 @@ fun ContactDetailScreen(
                                                         }
                                                 context.startActivity(intent)
                                             },
-                                            modifier = Modifier.size(40.dp),
-                                            colors =
-                                                    IconButtonDefaults.filledIconButtonColors(
-                                                            containerColor =
-                                                                    MaterialTheme.colorScheme
-                                                                            .secondaryContainer,
-                                                            contentColor =
-                                                                    MaterialTheme.colorScheme
-                                                                            .onSecondaryContainer
-                                                    )
+                                            modifier = Modifier.size(40.dp)
                                     ) {
                                         Icon(
                                                 imageVector = Icons.AutoMirrored.Filled.Message,
                                                 contentDescription =
                                                         stringResource(R.string.message),
-                                                modifier = Modifier.size(20.dp)
+                                                modifier = Modifier.size(24.dp),
+                                                tint = MaterialTheme.colorScheme.secondary
                                         )
                                     }
 
                                     // WhatsApp Button
-                                    FilledIconButton(
+                                    IconButton(
                                             onClick = {
                                                 try {
                                                     val phoneNumber =
@@ -206,16 +192,7 @@ fun ContactDetailScreen(
                                                     // WhatsApp not installed or error
                                                 }
                                             },
-                                            modifier = Modifier.size(40.dp),
-                                            colors =
-                                                    IconButtonDefaults.filledIconButtonColors(
-                                                            containerColor =
-                                                                    androidx.compose.ui.graphics
-                                                                            .Color(0xFF25D366),
-                                                            contentColor =
-                                                                    androidx.compose.ui.graphics
-                                                                            .Color.White
-                                                    )
+                                            modifier = Modifier.size(40.dp)
                                     ) {
                                         Icon(
                                                 painter =
@@ -223,7 +200,11 @@ fun ContactDetailScreen(
                                                                 id = R.drawable.ic_whatsapp
                                                         ),
                                                 contentDescription = "WhatsApp",
-                                                modifier = Modifier.size(20.dp)
+                                                modifier = Modifier.size(24.dp),
+                                                tint =
+                                                        androidx.compose.ui.graphics.Color(
+                                                                0xFF25D366
+                                                        )
                                         )
                                     }
                                 }
