@@ -70,7 +70,7 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
                         .setContentTitle(title)
                         .setTicker(title)
                         .setContentText("Syncing contacts and call logs...")
-                        .setSmallIcon(com.ran.crm.R.drawable.logo)
+                        .setSmallIcon(android.R.drawable.ic_popup_sync)
                         .setOngoing(true)
                         .build()
 
