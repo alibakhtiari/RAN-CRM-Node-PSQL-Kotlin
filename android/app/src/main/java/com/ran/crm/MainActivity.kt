@@ -6,11 +6,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
@@ -113,7 +117,33 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            RANCRMTheme {
+            // Observe preferences for Theme and Font Scale
+            var appTheme by remember { mutableStateOf(preferenceManager.appTheme) }
+            var fontScale by remember {
+                androidx.compose.runtime.mutableFloatStateOf(preferenceManager.fontScale)
+            }
+
+            androidx.compose.runtime.DisposableEffect(Unit) {
+                val listener =
+                        android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key
+                            ->
+                            when (key) {
+                                "app_theme" -> appTheme = preferenceManager.appTheme
+                                "font_scale" -> fontScale = preferenceManager.fontScale
+                            }
+                        }
+                preferenceManager.registerOnSharedPreferenceChangeListener(listener)
+                onDispose { preferenceManager.unregisterOnSharedPreferenceChangeListener(listener) }
+            }
+
+            val darkTheme =
+                    when (appTheme) {
+                        "light" -> false
+                        "dark" -> true
+                        else -> androidx.compose.foundation.isSystemInDarkTheme()
+                    }
+
+            RANCRMTheme(darkTheme = darkTheme, fontScale = fontScale) {
                 Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background

@@ -1,5 +1,6 @@
 package com.ran.crm.ui.screen
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -74,12 +75,6 @@ fun SettingsScreen(
         val observer =
                 androidx.lifecycle.Observer<List<androidx.work.WorkInfo>> { workInfos ->
                     val syncWorkInfo = workInfos.firstOrNull()
-
-                    android.util.Log.d(
-                            "SettingsScreen",
-                            "WorkInfo update: state=${syncWorkInfo?.state}, id=${syncWorkInfo?.id}"
-                    )
-
                     if (syncWorkInfo != null) {
                         isSyncing =
                                 syncWorkInfo.state == androidx.work.WorkInfo.State.RUNNING ||
@@ -88,15 +83,10 @@ fun SettingsScreen(
                         if (syncWorkInfo.state == androidx.work.WorkInfo.State.SUCCEEDED) {
                             lastSyncTime = preferenceManager.lastSyncContacts
                             isSyncing = false
-                            android.util.Log.d(
-                                    "SettingsScreen",
-                                    "Sync succeeded. Updated lastSyncTime."
-                            )
                         } else if (syncWorkInfo.state == androidx.work.WorkInfo.State.FAILED ||
                                         syncWorkInfo.state == androidx.work.WorkInfo.State.CANCELLED
                         ) {
                             isSyncing = false
-                            android.util.Log.d("SettingsScreen", "Sync failed or cancelled.")
                         }
                     }
                 }
@@ -130,7 +120,7 @@ fun SettingsScreen(
                                 .padding(16.dp)
                                 .verticalScroll(rememberScrollState())
         ) {
-            // Server Status
+            // 1. Server Status
             Card(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -185,111 +175,7 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Permissions Section
-            Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(text = "Permissions", style = MaterialTheme.typography.titleMedium)
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Regular permissions
-                    // Read refresh count to trigger recomposition
-                    permissions.forEach { (label, permission) ->
-                        val isGranted =
-                                androidx.core.content.ContextCompat.checkSelfPermission(
-                                        context,
-                                        permission
-                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-                        PermissionItem(
-                                label = label,
-                                isGranted = isGranted,
-                                onRequestPermission = {
-                                    permissionLauncher.launch(arrayOf(permission))
-                                }
-                        )
-                    }
-
-                    // Battery Optimization
-                    val pm =
-                            context.getSystemService(android.content.Context.POWER_SERVICE) as
-                                    android.os.PowerManager
-                    val isIgnoring =
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M
-                            ) {
-                                pm.isIgnoringBatteryOptimizations(context.packageName)
-                            } else {
-                                true
-                            }
-
-                    PermissionItem(
-                            label = "Battery Optimization",
-                            isGranted = isIgnoring,
-                            onRequestPermission = {
-                                if (android.os.Build.VERSION.SDK_INT >=
-                                                android.os.Build.VERSION_CODES.M
-                                ) {
-                                    try {
-                                        val intent =
-                                                android.content.Intent(
-                                                                android.provider.Settings
-                                                                        .ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-                                                        )
-                                                        .apply {
-                                                            data =
-                                                                    android.net.Uri.parse(
-                                                                            "package:${context.packageName}"
-                                                                    )
-                                                        }
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        try {
-                                            val intent =
-                                                    android.content.Intent(
-                                                            android.provider.Settings
-                                                                    .ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
-                                                    )
-                                            context.startActivity(intent)
-                                        } catch (e2: Exception) {
-                                            // Ignore
-                                        }
-                                    }
-                                }
-                            }
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Open Settings Button
-                    OutlinedButton(
-                            onClick = {
-                                try {
-                                    val intent =
-                                            android.content.Intent(
-                                                            android.provider.Settings
-                                                                    .ACTION_APPLICATION_DETAILS_SETTINGS
-                                                    )
-                                                    .apply {
-                                                        data =
-                                                                android.net.Uri.parse(
-                                                                        "package:${context.packageName}"
-                                                                )
-                                                    }
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    // Ignore
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                    ) { Text("Open App Settings") }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Sync Section
+            // 2. Sync Data
             Card(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -323,10 +209,6 @@ fun SettingsScreen(
 
                     Button(
                             onClick = {
-                                android.util.Log.d(
-                                        "SettingsScreen",
-                                        "Sync button clicked - Forcing Full Sync"
-                                )
                                 com.ran.crm.work.SyncWorker.scheduleOneTimeSync(
                                         context,
                                         forceFullSync = true
@@ -348,6 +230,170 @@ fun SettingsScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 3. Appearance (Font Size & Theme)
+            Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = "Appearance", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Theme
+                    Text(text = "Theme", style = MaterialTheme.typography.bodyMedium)
+                    Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val currentTheme = preferenceManager.appTheme
+                        ThemeOption(
+                                label = "System",
+                                selected = currentTheme == "system",
+                                onClick = { preferenceManager.appTheme = "system" }
+                        )
+                        ThemeOption(
+                                label = "Light",
+                                selected = currentTheme == "light",
+                                onClick = { preferenceManager.appTheme = "light" }
+                        )
+                        ThemeOption(
+                                label = "Dark",
+                                selected = currentTheme == "dark",
+                                onClick = { preferenceManager.appTheme = "dark" }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Font Size
+                    Text(text = "Font Size", style = MaterialTheme.typography.bodyMedium)
+                    Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val currentScale = preferenceManager.fontScale
+                        ThemeOption(
+                                label = "Small",
+                                selected = currentScale == 0.85f,
+                                onClick = { preferenceManager.fontScale = 0.85f }
+                        )
+                        ThemeOption(
+                                label = "Medium",
+                                selected = currentScale == 1.0f,
+                                onClick = { preferenceManager.fontScale = 1.0f }
+                        )
+                        ThemeOption(
+                                label = "Large",
+                                selected = currentScale == 1.15f,
+                                onClick = { preferenceManager.fontScale = 1.15f }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 4. Permissions (Compact)
+            Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "Permissions", style = MaterialTheme.typography.titleMedium)
+                        TextButton(
+                                onClick = {
+                                    try {
+                                        val intent =
+                                                android.content.Intent(
+                                                                android.provider.Settings
+                                                                        .ACTION_APPLICATION_DETAILS_SETTINGS
+                                                        )
+                                                        .apply {
+                                                            data =
+                                                                    android.net.Uri.parse(
+                                                                            "package:${context.packageName}"
+                                                                    )
+                                                        }
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {}
+                                }
+                        ) { Text("Open Settings") }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Regular permissions
+                    permissions.forEach { (label, permission) ->
+                        val isGranted =
+                                androidx.core.content.ContextCompat.checkSelfPermission(
+                                        context,
+                                        permission
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                        PermissionItem(
+                                label = label,
+                                isGranted = isGranted,
+                                onRequestPermission = {
+                                    permissionLauncher.launch(arrayOf(permission))
+                                }
+                        )
+                    }
+
+                    // Battery Optimization
+                    val pm =
+                            context.getSystemService(android.content.Context.POWER_SERVICE) as
+                                    android.os.PowerManager
+                    val isIgnoring =
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M
+                            ) {
+                                pm.isIgnoringBatteryOptimizations(context.packageName)
+                            } else {
+                                true
+                            }
+
+                    PermissionItem(
+                            label = "Battery Opt.",
+                            isGranted = isIgnoring,
+                            onRequestPermission = {
+                                if (android.os.Build.VERSION.SDK_INT >=
+                                                android.os.Build.VERSION_CODES.M
+                                ) {
+                                    try {
+                                        val intent =
+                                                android.content.Intent(
+                                                                android.provider.Settings
+                                                                        .ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                                                        )
+                                                        .apply {
+                                                            data =
+                                                                    android.net.Uri.parse(
+                                                                            "package:${context.packageName}"
+                                                                    )
+                                                        }
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        try {
+                                            val intent =
+                                                    android.content.Intent(
+                                                            android.provider.Settings
+                                                                    .ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                                                    )
+                                            context.startActivity(intent)
+                                        } catch (e2: Exception) {}
+                                    }
+                                }
+                            }
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
@@ -366,6 +412,21 @@ fun SettingsScreen(
                             )
             ) { Text("Logout") }
         }
+    }
+}
+
+@Composable
+private fun ThemeOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 4.dp)
+        )
     }
 }
 

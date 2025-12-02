@@ -14,6 +14,8 @@ class PreferenceManager(context: Context) {
         private const val KEY_LAST_SYNC_CONTACTS = "last_sync_contacts"
         private const val KEY_LAST_SYNC_CALLS = "last_sync_calls"
         private const val KEY_USER_ID = "user_id"
+        private const val KEY_APP_THEME = "app_theme"
+        private const val KEY_FONT_SCALE = "font_scale"
     }
 
     var userId: String?
@@ -32,8 +34,28 @@ class PreferenceManager(context: Context) {
         get() = prefs.getLong(KEY_LAST_SYNC_CALLS, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_SYNC_CALLS, value).apply()
 
+    var appTheme: String
+        get() = prefs.getString(KEY_APP_THEME, "system") ?: "system"
+        set(value) = prefs.edit().putString(KEY_APP_THEME, value).apply()
+
+    var fontScale: Float
+        get() = prefs.getFloat(KEY_FONT_SCALE, 1.0f)
+        set(value) = prefs.edit().putFloat(KEY_FONT_SCALE, value).apply()
+
     fun clear() {
         prefs.edit().clear().apply()
+    }
+
+    fun registerOnSharedPreferenceChangeListener(
+            listener: SharedPreferences.OnSharedPreferenceChangeListener
+    ) {
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+    }
+
+    fun unregisterOnSharedPreferenceChangeListener(
+            listener: SharedPreferences.OnSharedPreferenceChangeListener
+    ) {
+        prefs.unregisterOnSharedPreferenceChangeListener(listener)
     }
 
     fun clearSession() {
