@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
 
+import logo from '../assets/logo.png';
+
 export default function Login({ onLogin }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -20,6 +22,9 @@ export default function Login({ onLogin }) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
             <div className="bg-white p-8 rounded-lg shadow-md w-96">
+                <div className="flex justify-center mb-4">
+                    <img src={logo} alt="RAN CRM Logo" className="h-16 w-16 object-contain" />
+                </div>
                 <h2 className="text-2xl font-bold mb-6 text-center text-blue-600">RAN CRM Admin</h2>
                 {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
                 <form onSubmit={handleSubmit}>

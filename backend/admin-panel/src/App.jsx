@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Contacts from './pages/Contacts';
 import CallLogs from './pages/CallLogs';
+import logo from './assets/logo.png';
 
 import { api } from './services/api';
 
@@ -83,7 +84,10 @@ function App() {
     <div className="min-h-screen bg-gray-100">
       <nav className="bg-blue-600 text-white p-4 flex justify-between items-center">
         <div className="flex items-center gap-8">
-          <h1 className="text-xl font-bold">RAN CRM Admin</h1>
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="Logo" className="h-8 w-8 object-contain bg-white rounded-full p-1" />
+            <h1 className="text-xl font-bold">RAN CRM Admin</h1>
+          </div>
           <div className="flex gap-4">
             <button
               onClick={() => setCurrentView('dashboard')}
