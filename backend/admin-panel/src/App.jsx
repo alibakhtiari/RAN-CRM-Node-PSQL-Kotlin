@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Contacts from './pages/Contacts';
+import CallLogs from './pages/CallLogs';
 
 import { api } from './services/api';
 
@@ -96,6 +97,12 @@ function App() {
             >
               Contacts
             </button>
+            <button
+              onClick={() => setCurrentView('call_logs')}
+              className={`px-3 py-1 rounded ${currentView === 'call_logs' ? 'bg-blue-800' : 'hover:bg-blue-700'}`}
+            >
+              Call Logs
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -106,7 +113,9 @@ function App() {
         </div>
       </nav>
       <main className="p-8">
-        {currentView === 'dashboard' ? <Dashboard currentUser={currentUser} /> : <Contacts />}
+        {currentView === 'dashboard' && <Dashboard currentUser={currentUser} />}
+        {currentView === 'contacts' && <Contacts />}
+        {currentView === 'call_logs' && <CallLogs />}
       </main>
     </div>
   );

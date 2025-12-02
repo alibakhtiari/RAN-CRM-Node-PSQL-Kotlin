@@ -98,6 +98,24 @@ export const api = {
         if (!response.ok) throw new Error('Failed to load call logs');
         return response.json();
     },
+    getAllCallLogs: async (page = 1, limit = 10, updatedSince = null) => {
+        const query = new URLSearchParams({ page, limit });
+        if (updatedSince) query.append('updated_since', updatedSince);
+
+        const response = await fetch(`${API_BASE}/calls?${query.toString()}`, {
+            headers: getAuthHeader(),
+        });
+        if (!response.ok) throw new Error('Failed to load call logs');
+        return response.json();
+    },
+    deleteCallLog: async (id) => {
+        const response = await fetch(`${API_BASE}/calls/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeader(),
+        });
+        if (!response.ok) throw new Error('Failed to delete call log');
+        return response.json();
+    },
     createContact: async (data) => {
         const response = await fetch(`${API_BASE}/contacts`, {
             method: 'POST',

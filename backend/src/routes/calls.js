@@ -201,6 +201,27 @@ router.post('/', async (req, res) => {
   }
 });
 
+// DELETE /calls/:id - Admin only, delete single call log
+router.delete('/:id', async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM call_logs WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Call log not found' });
+    }
+
+    res.json({ message: 'Call log deleted successfully' });
+  } catch (error) {
+    console.error('Delete call log error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // DELETE /calls - Admin only, clear all call logs
 router.delete('/', async (req, res) => {
   try {
