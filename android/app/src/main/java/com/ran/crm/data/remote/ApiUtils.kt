@@ -7,19 +7,25 @@ suspend fun <T> safeApiCall(apiCall: suspend () -> T): ApiResult<T> {
     return try {
         ApiResult.Success(apiCall())
     } catch (e: HttpException) {
+        val errorBody =
+                try {
+                    e.response()?.errorBody()?.string()
+                } catch (ex: Exception) {
+                    null
+                }
+
         when (e.code()) {
-            401 -> ApiResult.Error(401, "Re-authentication required")
-            403 -> ApiResult.Error(403, "Access denied")
-            409 -> ApiResult.Error(409, "Data conflict - merge required")
+            401 -> ApiResult.Error(401, "Re-authentication required", errorBody)
+            403 -> ApiResult.Error(403, "Access denied", errorBody)
+            409 -> ApiResult.Error(409, "Data conflict - merge required", errorBody)
             else -> {
-                val errorBody = e.response()?.errorBody()?.string()
                 val message =
                         if (!errorBody.isNullOrEmpty()) {
                             "$errorBody (Code: ${e.code()})"
                         } else {
                             e.message()
                         }
-                ApiResult.Error(e.code(), message)
+                ApiResult.Error(e.code(), message, errorBody)
             }
         }
     } catch (e: IOException) {
