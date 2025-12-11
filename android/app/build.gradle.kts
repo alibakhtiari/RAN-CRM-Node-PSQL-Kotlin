@@ -1,9 +1,18 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.kapt")
     id("org.jetbrains.kotlin.plugin.compose")
     id("androidx.room")
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
 }
 
 android {
@@ -17,15 +26,13 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        buildConfigField("String", "TEST_USERNAME", "\"${localProperties.getProperty("TEST_USERNAME")}\"")
+        buildConfigField("String", "TEST_PASSWORD", "\"${localProperties.getProperty("TEST_PASSWORD")}\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
-
-        // ABI Filtering (Uncomment to build only for arm64-v8a)
-        // ndk {
-        //     abiFilters.add("arm64-v8a")
-        // }
     }
 
     buildTypes {
@@ -46,6 +53,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "2.2.21"

@@ -1,13 +1,12 @@
 package com.ran.crm
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import com.ran.crm.data.remote.ApiClient
 import com.ran.crm.data.remote.ApiResult
-import com.ran.crm.data.remote.safeApiCall
-import com.ran.crm.data.remote.model.LoginRequest
-import com.ran.crm.data.remote.model.BatchContactRequest
 import com.ran.crm.data.remote.model.BatchContactData
+import com.ran.crm.data.remote.model.BatchContactRequest
+import com.ran.crm.data.remote.model.LoginRequest
+import com.ran.crm.data.remote.safeApiCall
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
@@ -26,22 +25,21 @@ class ApiIntegrationTest {
     @Test
     fun `login API should authenticate user successfully`() = runBlocking {
         // Given
-        val loginRequest = LoginRequest(
-            username = "admin",
-            password = "admin123"
-        )
+        val loginRequest =
+                LoginRequest(
+                        username = BuildConfig.TEST_USERNAME,
+                        password = BuildConfig.TEST_PASSWORD
+                )
 
         // When
-        val result = safeApiCall {
-            ApiClient.apiService.login(loginRequest)
-        }
+        val result = safeApiCall { ApiClient.apiService.login(loginRequest) }
 
         // Then
         assertTrue("Login should succeed", result is ApiResult.Success)
         val response = (result as ApiResult.Success).data
         assertNotNull("Token should not be null", response.token)
         assertNotNull("User should not be null", response.user)
-        assertEquals("Username should match", "admin", response.user.username)
+        assertEquals("Username should match", BuildConfig.TEST_USERNAME, response.user.username)
 
         // Store token for subsequent tests
         ApiClient.setAuthToken(response.token)
@@ -54,9 +52,7 @@ class ApiIntegrationTest {
         assumeTrue("Token should be available from login", token != null)
 
         // When
-        val result = safeApiCall {
-            ApiClient.apiService.getContacts(page = 1, limit = 10)
-        }
+        val result = safeApiCall { ApiClient.apiService.getContacts(page = 1, limit = 10) }
 
         // Then
         assertTrue("Get contacts should succeed", result is ApiResult.Success)
@@ -72,24 +68,23 @@ class ApiIntegrationTest {
         val token = ApiClient.getAuthToken()
         assumeTrue("Token should be available from login", token != null)
 
-        val batchData = listOf(
-            BatchContactData(
-                name = "Test Contact 1",
-                phone_raw = "09123456789",
-                created_at = kotlinx.datetime.Clock.System.now().toString()
-            ),
-            BatchContactData(
-                name = "Test Contact 2",
-                phone_raw = "09123456790",
-                created_at = kotlinx.datetime.Clock.System.now().toString()
-            )
-        )
+        val batchData =
+                listOf(
+                        BatchContactData(
+                                name = "Test Contact 1",
+                                phone_raw = "09123456789",
+                                created_at = kotlinx.datetime.Clock.System.now().toString()
+                        ),
+                        BatchContactData(
+                                name = "Test Contact 2",
+                                phone_raw = "09123456790",
+                                created_at = kotlinx.datetime.Clock.System.now().toString()
+                        )
+                )
         val batchRequest = BatchContactRequest(batchData)
 
         // When
-        val result = safeApiCall {
-            ApiClient.apiService.batchCreateContacts(batchRequest)
-        }
+        val result = safeApiCall { ApiClient.apiService.batchCreateContacts(batchRequest) }
 
         // Then
         assertTrue("Batch upload should succeed", result is ApiResult.Success)
@@ -106,9 +101,7 @@ class ApiIntegrationTest {
         assumeTrue("Token should be available from login", token != null)
 
         // When
-        val result = safeApiCall {
-            ApiClient.apiService.getCalls(page = 1, limit = 10)
-        }
+        val result = safeApiCall { ApiClient.apiService.getCalls(page = 1, limit = 10) }
 
         // Then
         assertTrue("Get call logs should succeed", result is ApiResult.Success)
@@ -124,9 +117,7 @@ class ApiIntegrationTest {
         ApiClient.setAuthToken(null)
 
         // When
-        val result = safeApiCall {
-            ApiClient.apiService.getContacts()
-        }
+        val result = safeApiCall { ApiClient.apiService.getContacts() }
 
         // Then
         assertTrue("Request should fail with 401", result is ApiResult.Error)
@@ -137,15 +128,10 @@ class ApiIntegrationTest {
     @Test
     fun `invalid login should return authentication error`() = runBlocking {
         // Given
-        val invalidLoginRequest = LoginRequest(
-            username = "invalid",
-            password = "invalid"
-        )
+        val invalidLoginRequest = LoginRequest(username = "invalid", password = "invalid")
 
         // When
-        val result = safeApiCall {
-            ApiClient.apiService.login(invalidLoginRequest)
-        }
+        val result = safeApiCall { ApiClient.apiService.login(invalidLoginRequest) }
 
         // Then
         assertTrue("Login should fail", result is ApiResult.Error)
