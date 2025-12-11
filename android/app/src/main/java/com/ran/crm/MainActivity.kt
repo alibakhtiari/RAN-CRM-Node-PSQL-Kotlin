@@ -108,9 +108,6 @@ class MainActivity : ComponentActivity() {
         callLogObserver = com.ran.crm.service.CallLogObserver(this)
         callLogObserver.register()
 
-        // Ensure Sync Account Exists
-        com.ran.crm.sync.AccountHelper.ensureAccountExists(this)
-
         // Schedule Periodic Sync (WorkManager)
         // This ensures reliable background sync and shows a notification while syncing
         com.ran.crm.work.SyncWorker.schedulePeriodicSync(this, 15)
