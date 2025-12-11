@@ -25,30 +25,33 @@ Contact & Call Log Sync CRM Backend API built with Node.js, Express, and Postgre
 ### Using Docker Compose (Recommended)
 
 1. **Clone and navigate to backend directory**
+
    ```bash
    cd backend
    ```
-
 2. **Start services**
+
    ```bash
    docker-compose up -d
    ```
-
 3. **Check health**
+
    ```bash
    curl http://localhost:3000/health
    ```
-
 4. **Access Admin Interface**
+
    ```
    http://localhost:3000/admin
    ```
 
    **Default Login:**
+
    - Username: `admin`
    - Password: `admin123`
 
    **Test Accounts:**
+
    - Admin: `admin` / `admin123`
    - User: `user` / `user123`
 
@@ -57,21 +60,22 @@ The database schema and default admin user will be automatically initialized.
 ### Manual Setup
 
 1. **Install dependencies**
+
    ```bash
    npm install
    ```
-
 2. **Set up PostgreSQL**
+
    - Create database: `ran_crm`
    - Run schema: `psql -d ran_crm -f database/schema.sql`
-
 3. **Configure environment**
+
    ```bash
    cp .env.example .env
    # Edit .env with your database credentials
    ```
-
 4. **Start server**
+
    ```bash
    npm run dev  # Development
    npm start    # Production
@@ -80,15 +84,18 @@ The database schema and default admin user will be automatically initialized.
 ## API Endpoints
 
 ### Authentication
+
 - `POST /auth/login` - Login with email/password
 - `GET /auth/me` - Get current user info
 
 ### Users (Admin Only)
+
 - `GET /users?page=&limit=` - List users
 - `POST /users` - Create user
 - `DELETE /users/:id` - Delete user
 
 ### Contacts
+
 - `GET /contacts?page=&limit=` - List contacts
 - `GET /contacts/search?q=<name>&page=&limit=` - Search contacts
 - `POST /contacts` - Create/update contact (with conflict handling)
@@ -96,17 +103,20 @@ The database schema and default admin user will be automatically initialized.
 - `DELETE /contacts/:id` - Delete contact (owner only)
 
 ### Call Logs
+
 - `GET /calls?page=&limit=` - Global call history
 - `GET /calls/:contact_id?page=&limit=` - Call history for contact
 - `POST /calls` - Bulk upload calls
 
 ### Sync Audit
+
 - `GET /sync?page=&limit=` - Recent sync records
 - `POST /sync` - Record sync operation
 
 ## Request/Response Examples
 
 ### Login
+
 ```bash
 POST /auth/login
 Content-Type: application/json
@@ -118,6 +128,7 @@ Content-Type: application/json
 ```
 
 Response:
+
 ```json
 {
   "token": "jwt-token-here",
@@ -131,6 +142,7 @@ Response:
 ```
 
 ### Create Contact
+
 ```bash
 POST /contacts
 Authorization: Bearer <token>
@@ -145,6 +157,7 @@ Content-Type: application/json
 ```
 
 ### Bulk Upload Calls
+
 ```bash
 POST /calls
 Authorization: Bearer <token>
@@ -166,6 +179,7 @@ Content-Type: application/json
 ## Conflict Handling
 
 For contacts, if a phone number already exists:
+
 - Compare `created_at` timestamps
 - **Older wins**: Update existing record with incoming data
 - **Newer loses**: Return existing record without changes
@@ -173,10 +187,12 @@ For contacts, if a phone number already exists:
 ## Pagination
 
 All list endpoints support:
+
 - `page`: Page number (default: 1)
 - `limit`: Items per page (default: 10, max: 100)
 
 Response format:
+
 ```json
 {
   "data": [...],
@@ -215,16 +231,16 @@ openssl rand -base64 32
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_HOST` | localhost | PostgreSQL host |
-| `DB_PORT` | 5432 | PostgreSQL port |
-| `DB_NAME` | ran_crm | Database name |
-| `DB_USER` | postgres | Database user |
-| `DB_PASSWORD` | password | Database password |
-| `JWT_SECRET` | dev-secret | JWT signing secret |
-| `JWT_EXPIRES_IN` | 24h | JWT expiration time |
-| `PORT` | 3000 | Server port |
+| Variable           | Default    | Description         |
+| ------------------ | ---------- | ------------------- |
+| `DB_HOST`        | localhost  | PostgreSQL host     |
+| `DB_PORT`        | 5432       | PostgreSQL port     |
+| `DB_NAME`        | ran_crm    | Database name       |
+| `DB_USER`        | postgres   | Database user       |
+| `DB_PASSWORD`    | password   | Database password   |
+| `JWT_SECRET`     | dev-secret | JWT signing secret  |
+| `JWT_EXPIRES_IN` | 24h        | JWT expiration time |
+| `PORT`           | 3000       | Server port         |
 
 ## Database Schema
 
@@ -269,11 +285,24 @@ npm run build
 4. Configure monitoring and logging
 5. Use HTTPS with proper SSL certificates
 
-## Mobile Integration
 
-See [MOBILE_INTEGRATION.md](MOBILE_INTEGRATION.md) for comprehensive mobile development guide including:
-- Kotlin/Room data models
-- Sync logic implementation
-- Network client setup
-- Error handling strategies
-- Testing guidelines
+
+```
+# 1. Generate random secure values
+GEN_USER="ran_user_$(openssl rand -hex 4)"
+GEN_PASS=$(openssl rand -base64 24)
+GEN_SECRET=$(openssl rand -base64 48)
+
+# 2. Write them to the .env file
+cat <<EOF > .env
+DB_NAME=ran_crm
+DB_USER=$GEN_USER
+DB_PASSWORD=$GEN_PASS
+JWT_SECRET=$GEN_SECRET
+NODE_ENV=production
+EOF
+
+# 3. Show the result so you can save a copy if needed
+echo "✅ .env file created with the following credentials:"
+cat .env
+```
