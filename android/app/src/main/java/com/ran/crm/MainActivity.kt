@@ -109,8 +109,12 @@ class MainActivity : ComponentActivity() {
         callLogObserver.register()
 
         // Schedule Periodic Sync (WorkManager)
-        // This ensures reliable background sync and shows a notification while syncing
-        com.ran.crm.work.SyncWorker.schedulePeriodicSync(this, 15)
+        val interval = preferenceManager.syncIntervalMinutes
+        if (interval > 0) {
+            com.ran.crm.work.SyncWorker.schedulePeriodicSync(this, interval)
+        } else {
+            com.ran.crm.work.SyncWorker.cancelPeriodicSync(this)
+        }
 
         enableEdgeToEdge()
         setContent {
