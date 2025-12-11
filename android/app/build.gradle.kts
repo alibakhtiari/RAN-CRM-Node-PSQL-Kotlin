@@ -109,6 +109,9 @@ dependencies {
     testImplementation(libs.mockk)
 
     androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.junit)
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.1")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)

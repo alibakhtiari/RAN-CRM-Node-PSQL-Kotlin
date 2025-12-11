@@ -7,12 +7,15 @@ import com.ran.crm.data.remote.model.BatchContactData
 import com.ran.crm.data.remote.model.BatchContactRequest
 import com.ran.crm.data.remote.model.LoginRequest
 import com.ran.crm.data.remote.safeApiCall
+import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@OptIn(ExperimentalTime::class)
 @RunWith(AndroidJUnit4::class)
 class ApiIntegrationTest {
 
@@ -73,12 +76,12 @@ class ApiIntegrationTest {
                         BatchContactData(
                                 name = "Test Contact 1",
                                 phone_raw = "09123456789",
-                                created_at = kotlinx.datetime.Clock.System.now().toString()
+                                created_at = Clock.System.now().toString()
                         ),
                         BatchContactData(
                                 name = "Test Contact 2",
                                 phone_raw = "09123456790",
-                                created_at = kotlinx.datetime.Clock.System.now().toString()
+                                created_at = Clock.System.now().toString()
                         )
                 )
         val batchRequest = BatchContactRequest(batchData)
