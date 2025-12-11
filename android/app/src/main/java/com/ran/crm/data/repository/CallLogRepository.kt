@@ -270,7 +270,8 @@ class CallLogRepository(
                 is com.ran.crm.data.remote.ApiResult.Error -> {
                     val msg = "Failed to download delta call logs: ${result.message}"
                     com.ran.crm.utils.SyncLogger.log(msg)
-                    throw Exception(msg)
+                    // Ensure we don't crash the sync process
+                    return
                 }
             }
         }
