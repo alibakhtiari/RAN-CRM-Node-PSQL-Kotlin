@@ -22,16 +22,24 @@ app.get('/health', (req, res) => {
 
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
-// Proxy /admin requests to the admin panel container
-// MUST be before express.static to avoid serving stale files
-app.use('/admin', createProxyMiddleware({
-  target: process.env.ADMIN_PANEL_URL || 'http://ran-crm-admin:5173',
-  changeOrigin: true,
-  ws: true, // Proxy websockets
-}));
+// --- CONFIGURATION FOR ADMIN PANEL ---
 
-// Serve static files from public directory
+// 1. In DEVELOPMENT: Proxy /admin to the Vite dev server
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/admin', createProxyMiddleware({
+    target: process.env.ADMIN_PANEL_URL || 'http://localhost:5173',
+    changeOrigin: true,
+    ws: true,
+  }));
+}
+
+// 2. In PRODUCTION: Serve the static files built by Vite
+// The build output is located in backend/public/admin
+// This line serves everything inside 'public' at the root url
+// So 'public/admin/index.html' becomes available at 'YOUR_DOMAIN/admin/'
 app.use(express.static(path.join(__dirname, '../public')));
+
+// -------------------------------------
 
 // Routes
 app.use('/auth', authRoutes);
