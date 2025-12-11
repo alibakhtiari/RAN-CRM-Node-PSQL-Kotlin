@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
         navController: NavController,
         preferenceManager: PreferenceManager,
+        contactMigrationManager: com.ran.crm.data.manager.ContactMigrationManager,
         onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -180,52 +181,152 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Sync Data", style = MaterialTheme.typography.bodyMedium)
+                Column {
+                    Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Sync Data", style = MaterialTheme.typography.bodyMedium)
 
-                        val relativeTime =
-                                if (lastSyncTime > 0) {
-                                    android.text.format.DateUtils.getRelativeTimeSpanString(
-                                                    lastSyncTime,
-                                                    System.currentTimeMillis(),
-                                                    android.text.format.DateUtils.MINUTE_IN_MILLIS
-                                            )
-                                            .toString()
-                                } else {
-                                    "Never"
-                                }
+                            val relativeTime =
+                                    if (lastSyncTime > 0) {
+                                        android.text.format.DateUtils.getRelativeTimeSpanString(
+                                                        lastSyncTime,
+                                                        System.currentTimeMillis(),
+                                                        android.text.format.DateUtils
+                                                                .MINUTE_IN_MILLIS
+                                                )
+                                                .toString()
+                                    } else {
+                                        "Never"
+                                    }
 
-                        Text(
-                                text = relativeTime,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            Text(
+                                    text = relativeTime,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Button(
+                                onClick = {
+                                    com.ran.crm.work.SyncWorker.scheduleOneTimeSync(
+                                            context,
+                                            forceFullSync = true
+                                    )
+                                },
+                                enabled = !isSyncing,
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            if (isSyncing) {
+                                CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text("Sync")
+                            }
+                        }
                     }
 
-                    Button(
-                            onClick = {
-                                com.ran.crm.work.SyncWorker.scheduleOneTimeSync(
-                                        context,
-                                        forceFullSync = true
-                                )
-                            },
-                            enabled = !isSyncing,
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    HorizontalDivider()
+
+                    Text(
+                            text = "Import Contacts",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+                    )
+
+                    var isImporting by remember { mutableStateOf(false) }
+
+                    Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (isSyncing) {
-                            CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text("Sync")
+                        Text(
+                                text = "Import from Device",
+                                style = MaterialTheme.typography.bodySmall
+                        )
+
+                        Button(
+                                onClick = {
+                                    scope.launch {
+                                        isImporting = true
+                                        val count =
+                                                contactMigrationManager.importSystemContacts(false)
+                                        isImporting = false
+                                        android.widget.Toast.makeText(
+                                                        context,
+                                                        "Imported $count contacts",
+                                                        android.widget.Toast.LENGTH_SHORT
+                                                )
+                                                .show()
+                                    }
+                                },
+                                enabled = !isImporting,
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            if (isImporting) {
+                                CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text("Import")
+                            }
                         }
+                    }
+
+                    HorizontalDivider()
+
+                    Text(
+                            text = "Sync Interval",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+                    )
+
+                    Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val currentInterval = preferenceManager.syncIntervalMinutes
+                        ThemeOption(
+                                label = "15m",
+                                selected = currentInterval == 15,
+                                onClick = {
+                                    preferenceManager.syncIntervalMinutes = 15
+                                    com.ran.crm.work.SyncWorker.schedulePeriodicSync(context, 15)
+                                }
+                        )
+                        ThemeOption(
+                                label = "30m",
+                                selected = currentInterval == 30,
+                                onClick = {
+                                    preferenceManager.syncIntervalMinutes = 30
+                                    com.ran.crm.work.SyncWorker.schedulePeriodicSync(context, 30)
+                                }
+                        )
+                        ThemeOption(
+                                label = "1h",
+                                selected = currentInterval == 60,
+                                onClick = {
+                                    preferenceManager.syncIntervalMinutes = 60
+                                    com.ran.crm.work.SyncWorker.schedulePeriodicSync(context, 60)
+                                }
+                        )
+                        ThemeOption(
+                                label = "Manual",
+                                selected = currentInterval == 0,
+                                onClick = {
+                                    preferenceManager.syncIntervalMinutes = 0
+                                    com.ran.crm.work.SyncWorker.cancelPeriodicSync(context)
+                                }
+                        )
                     }
                 }
             }
