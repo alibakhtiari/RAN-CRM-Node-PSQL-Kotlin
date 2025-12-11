@@ -32,6 +32,9 @@ interface ContactDao {
         @Query("SELECT * FROM contacts WHERE phone_normalized = :phoneNormalized")
         suspend fun getContactByPhoneNormalized(phoneNormalized: String): Contact?
 
+        @Query("SELECT phone_normalized FROM contacts WHERE phone_normalized IN (:phones)")
+        suspend fun getExistingNormalizedPhones(phones: List<String>): List<String>
+
         @Insert(onConflict = OnConflictStrategy.REPLACE)
         suspend fun insertContacts(contacts: List<Contact>)
 

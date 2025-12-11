@@ -18,6 +18,8 @@ class SyncManager(private val context: Context) {
     private val callLogRepository =
             com.ran.crm.data.repository.CallLogRepository(database.callLogDao(), preferenceManager)
     private val contactWriter = ContactWriter(context, contactRepository)
+    private val contactMigrationManager =
+            com.ran.crm.data.manager.ContactMigrationManager(context, contactRepository)
 
     suspend fun performFullSync(): Boolean =
             withContext(Dispatchers.IO) {
@@ -141,10 +143,22 @@ class SyncManager(private val context: Context) {
         SyncLogger.log("Starting Contact Sync (Full: $isFullSync)")
 
         try {
-            // STEP 0: Upload Dirty Contacts (Offline-First)
+            // STEP 0: Automatic System Import (Device -> App)
+            try {
+                // Import contacts from device, don't delete from device (false)
+                val importedCount =
+                        contactMigrationManager.importSystemContacts(deleteAfterImport = false)
+                if (importedCount > 0) {
+                    SyncLogger.log("Auto-Import: Imported $importedCount new contacts from device")
+                }
+            } catch (e: Exception) {
+                SyncLogger.log("Auto-Import Failed (Non-critical)", e)
+            }
+
+            // STEP 1: Upload Dirty Contacts (Offline-First)
             contactRepository.uploadDirtyContacts()
 
-            // STEP 1: Download from Server
+            // STEP 2: Download from Server
             if (isFullSync) {
                 contactRepository.performFullSyncDownload()
             } else {

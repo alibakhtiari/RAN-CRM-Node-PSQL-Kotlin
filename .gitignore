@@ -265,3 +265,6 @@ sdk.dir
 
 # Local configuration for JDK
 java.dir
+/backend/node_modules
+backend/package-lock.json
+/instructions

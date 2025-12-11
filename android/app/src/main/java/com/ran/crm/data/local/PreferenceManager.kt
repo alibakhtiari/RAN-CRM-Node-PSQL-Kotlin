@@ -16,6 +16,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_USER_ID = "user_id"
         private const val KEY_APP_THEME = "app_theme"
         private const val KEY_FONT_SCALE = "font_scale"
+        private const val KEY_SYNC_INTERVAL_MINUTES = "sync_interval_minutes"
     }
 
     var userId: String?
@@ -41,6 +42,10 @@ class PreferenceManager(context: Context) {
     var fontScale: Float
         get() = prefs.getFloat(KEY_FONT_SCALE, 1.0f)
         set(value) = prefs.edit().putFloat(KEY_FONT_SCALE, value).apply()
+
+    var syncIntervalMinutes: Int
+        get() = prefs.getInt(KEY_SYNC_INTERVAL_MINUTES, 15)
+        set(value) = prefs.edit().putInt(KEY_SYNC_INTERVAL_MINUTES, value).apply()
 
     fun clear() {
         prefs.edit().clear().apply()

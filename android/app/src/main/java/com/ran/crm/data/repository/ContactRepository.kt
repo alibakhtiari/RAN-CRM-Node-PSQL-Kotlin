@@ -55,6 +55,9 @@ class ContactRepository(
     suspend fun getContactByPhoneNormalized(phoneNormalized: String): Contact? =
             contactDao.getContactByPhoneNormalized(phoneNormalized)
 
+    suspend fun getExistingNormalizedPhones(phones: List<String>): Set<String> =
+            contactDao.getExistingNormalizedPhones(phones).toSet()
+
     suspend fun insertContacts(contacts: List<Contact>) = contactDao.insertContacts(contacts)
 
     suspend fun insertContact(contact: Contact) = contactDao.insertContact(contact)
@@ -300,8 +303,29 @@ class ContactRepository(
             }
             is com.ran.crm.data.remote.ApiResult.Error -> {
                 if (result.code == 409) {
-                    // Conflict
-                    getContactByPhoneNormalized(phoneNormalized)
+                    // Conflict - Server has the contact
+                    try {
+                        if (result.errorBody != null) {
+                            val conflictResponse =
+                                    com.google.gson.Gson()
+                                            .fromJson(
+                                                    result.errorBody,
+                                                    com.ran.crm.data.remote.model
+                                                                    .ConflictErrorResponse::class
+                                                            .java
+                                            )
+                            val serverContact = conflictResponse.existing_contact
+                            // Upsert server version locally as synced
+                            contactDao.insertContact(serverContact.copy(syncStatus = 0))
+                            serverContact
+                        } else {
+                            // Fallback
+                            getContactByPhoneNormalized(phoneNormalized)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        getContactByPhoneNormalized(phoneNormalized)
+                    }
                 } else {
                     // Return local contact (offline mode)
                     contact
