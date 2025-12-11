@@ -13,12 +13,33 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
     override suspend fun doWork(): Result =
             withContext(Dispatchers.IO) {
                 try {
+                    // 1. Initialize dependencies
+                    val preferenceManager =
+                            com.ran.crm.data.local.PreferenceManager(applicationContext)
+
+                    // 2. CRITICAL: Restore Auth Token
+                    val token = preferenceManager.authToken
+                    if (token != null) {
+                        com.ran.crm.data.remote.ApiClient.setAuthToken(token)
+                        com.ran.crm.utils.SyncLogger.log("SyncWorker: Auth token restored")
+                    } else {
+                        com.ran.crm.utils.SyncLogger.log(
+                                "SyncWorker: No auth token found - aborting sync"
+                        )
+                        return@withContext Result.failure()
+                    }
+
                     // Set timeout of 5 minutes
                     kotlinx.coroutines.withTimeout(5 * 60 * 1000L) {
                         try {
                             setForeground(createForegroundInfo())
                         } catch (e: Exception) {
-                            android.util.Log.e("SyncWorker", "Failed to set foreground", e)
+                            if (e is kotlinx.coroutines.CancellationException) throw e
+                            android.util.Log.e(
+                                    "SyncWorker",
+                                    "Failed to set foreground (ignoring and running as background)",
+                                    e
+                            )
                         }
 
                         com.ran.crm.utils.SyncLogger.log("SyncWorker: Starting sync...")
@@ -46,6 +67,9 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
                             Result.retry()
                         }
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    com.ran.crm.utils.SyncLogger.log("SyncWorker: Sync cancelled")
+                    throw e
                 } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                     com.ran.crm.utils.SyncLogger.log("SyncWorker: Sync timed out", e)
                     Result.failure()
