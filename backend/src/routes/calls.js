@@ -16,26 +16,50 @@ router.get('/', async (req, res) => {
     const { updated_since } = req.query;
 
     let whereClause = '';
-    let params = [limit, offset];
-    let paramIndex = 3;
+    let countParams = [];
+    let dataParams = [];
+
+    // Filter by user if not admin
+    const userFilter = req.user.is_admin ? '' : 'cl.user_id = $1';
 
     // Delta sync support
     if (updated_since) {
-      whereClause = 'WHERE cl.timestamp > $3';
-      params = [limit, offset, new Date(updated_since)];
+      const timeFilter = 'cl.timestamp > $' + (req.user.is_admin ? '1' : '2');
+      whereClause = userFilter
+        ? `WHERE ${userFilter} AND ${timeFilter}`
+        : `WHERE ${timeFilter}`;
+
+      if (req.user.is_admin) {
+        countParams = [new Date(updated_since)];
+        dataParams = [new Date(updated_since), limit, offset];
+      } else {
+        countParams = [req.user.id, new Date(updated_since)];
+        dataParams = [req.user.id, new Date(updated_since), limit, offset];
+      }
+    } else {
+      whereClause = userFilter ? `WHERE ${userFilter}` : '';
+      if (req.user.is_admin) {
+        dataParams = [limit, offset];
+      } else {
+        countParams = [req.user.id];
+        dataParams = [req.user.id, limit, offset];
+      }
     }
 
     const countQuery = `SELECT COUNT(*) FROM call_logs cl ${whereClause}`;
-    const countResult = await pool.query(countQuery, updated_since ? [new Date(updated_since)] : []);
+    const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].count);
 
     const dataQuery = `SELECT cl.id, cl.user_id, cl.contact_id, cl.direction, cl.duration_seconds, cl.timestamp,
-              c.name as contact_name, c.phone_raw as contact_phone
-       FROM call_logs cl
-       LEFT JOIN contacts c ON cl.contact_id = c.id
-       ${whereClause}
-       ORDER BY cl.timestamp DESC LIMIT $${paramIndex - 2} OFFSET $${paramIndex - 1}`;
-    const result = await pool.query(dataQuery, params);
+            c.name as contact_name, c.phone_raw as contact_phone,
+            u.username, u.name as user_name
+     FROM call_logs cl
+     LEFT JOIN contacts c ON cl.contact_id = c.id
+     LEFT JOIN users u ON cl.user_id = u.id
+     ${whereClause}
+     ORDER BY cl.timestamp DESC LIMIT $${req.user.is_admin ? (updated_since ? '2' : '1') : (updated_since ? '3' : '2')} OFFSET $${req.user.is_admin ? (updated_since ? '3' : '2') : (updated_since ? '4' : '3')}`;
+
+    const result = await pool.query(dataQuery, dataParams);
 
     res.json(getPaginationResult(result.rows, total, page, limit));
   } catch (error) {
@@ -51,10 +75,16 @@ router.get('/:contact_id', async (req, res) => {
     const { page, limit, offset } = getPaginationParams(req);
 
     // Verify contact exists and user has access
-    const contactCheck = await pool.query(
-      'SELECT id FROM contacts WHERE id = $1 AND created_by = $2',
-      [contact_id, req.user.id]
-    );
+    // Check if contact exists and belongs to user (or user is admin)
+    let contactCheckQuery = 'SELECT id FROM contacts WHERE id = $1';
+    let contactCheckParams = [contact_id];
+
+    if (!req.user.is_admin) {
+      contactCheckQuery += ' AND created_by = $2';
+      contactCheckParams.push(req.user.id);
+    }
+
+    const contactCheck = await pool.query(contactCheckQuery, contactCheckParams);
 
     if (contactCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Contact not found or access denied' });
@@ -68,9 +98,11 @@ router.get('/:contact_id', async (req, res) => {
 
     const result = await pool.query(
       `SELECT cl.id, cl.user_id, cl.contact_id, cl.direction, cl.duration_seconds, cl.timestamp,
-              c.name as contact_name, c.phone_raw as contact_phone
+              c.name as contact_name, c.phone_raw as contact_phone,
+              u.name as user_name
        FROM call_logs cl
        LEFT JOIN contacts c ON cl.contact_id = c.id
+       LEFT JOIN users u ON cl.user_id = u.id
        WHERE cl.contact_id = $1
        ORDER BY cl.timestamp DESC LIMIT $2 OFFSET $3`,
       [contact_id, limit, offset]
@@ -127,6 +159,26 @@ router.post('/', async (req, res) => {
           }
         }
 
+        // Check for duplicates before inserting
+        const duplicateCheck = await client.query(
+          `SELECT id FROM call_logs 
+           WHERE user_id = $1 
+           AND direction = $2 
+           AND duration_seconds = $3 
+           AND timestamp >= $4::timestamp - interval '1 second'
+           AND timestamp <= $4::timestamp + interval '1 second'
+           AND (
+             (contact_id IS NOT NULL AND contact_id = $5) OR 
+             (contact_id IS NULL AND $5 IS NULL)
+           )`,
+          [req.user.id, direction, duration_seconds, timestamp || new Date(), finalContactId]
+        );
+
+        if (duplicateCheck.rows.length > 0) {
+          // Skip duplicate
+          continue;
+        }
+
         const result = await client.query(
           'INSERT INTO call_logs (user_id, contact_id, direction, duration_seconds, timestamp) VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id, contact_id, direction, duration_seconds, timestamp',
           [req.user.id, finalContactId, direction, duration_seconds, timestamp || new Date()]
@@ -145,6 +197,46 @@ router.post('/', async (req, res) => {
     }
   } catch (error) {
     console.error('Bulk upload calls error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /calls/:id - Admin only, delete single call log
+router.delete('/:id', async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM call_logs WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Call log not found' });
+    }
+
+    res.json({ message: 'Call log deleted successfully' });
+  } catch (error) {
+    console.error('Delete call log error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /calls - Admin only, clear all call logs
+router.delete('/', async (req, res) => {
+  try {
+    // Check if user is admin (requireAdmin middleware will be added in router registration)
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const result = await pool.query('DELETE FROM call_logs');
+    res.json({
+      message: 'All call logs cleared successfully',
+      deleted_count: result.rowCount
+    });
+  } catch (error) {
+    console.error('Delete all calls error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

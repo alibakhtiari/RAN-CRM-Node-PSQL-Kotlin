@@ -292,6 +292,7 @@
                     <h3>Call Logs</h3>
                     <div class="actions">
                         <button class="btn" onclick="loadCalls()">Refresh</button>
+                        <button class="btn btn-danger" onclick="clearAllCallLogs()" id="clear-calls-btn" style="display: none;">Clear All Call Logs</button>
                     </div>
                     <div id="calls-list" class="data-list"></div>
                 </div>
@@ -533,26 +534,39 @@
             const callsList = document.getElementById('calls-list');
             callsList.innerHTML = '';
 
+            // Show clear button for admins if there are calls
+            const clearBtn = document.getElementById('clear-calls-btn');
+            if (calls.length > 0 && clearBtn) {
+                clearBtn.style.display = 'inline-block';
+            }
+
             calls.forEach(call => {
                 const callEl = document.createElement('div');
                 callEl.className = 'data-item';
+                const timestamp = new Date(call.timestamp).toLocaleString();
+                const duration = `${Math.floor(call.duration_seconds / 60)}:${(call.duration_seconds % 60).toString().padStart(2, '0')}`;
+                
                 callEl.innerHTML = `
                     <div>
-                        <strong>${call.contact_name || 'Unknown'}</strong><br>
-                        <small>${call.direction} - ${Math.floor(call.duration_seconds / 60)}:${(call.duration_seconds % 60).toString().padStart(2, '0')}</small>
+                        <strong>${call.contact_name || call.contact_phone || 'Unknown'}</strong> <span style="color: #6b7280; font-size: 0.875rem;">(${call.username || 'Unknown User'})</span><br>
+                        <small>${call.direction} - ${duration} - ${timestamp}</small>
                     </div>
                 `;
                 callsList.appendChild(callEl);
             });
+            
+            if (calls.length === 0) {
+                callsList.innerHTML = '<p style="padding: 1rem; text-align: center; color: #6b7280;">No call logs found</p>';
+            }
         }
 
         async function loadSyncAudit() {
             try {
-                const response = await apiRequest('/sync');
+                const response = await apiRequest('/sync-audit');
                 const data = await response.json();
 
                 if (response.ok) {
-                    displaySyncAudit(data.data);
+                    displaySyncAudit(data.sync_audits || []);
                 }
             } catch (error) {
                 console.error('Error loading sync audit:', error);
@@ -563,13 +577,44 @@
             const syncList = document.getElementById('sync-list');
             syncList.innerHTML = '';
 
+            if (syncs.length === 0) {
+                syncList.innerHTML = '<p style="padding: 1rem; text-align: center; color: #6b7280;">No sync audit data found</p>';
+                return;
+            }
+
             syncs.forEach(sync => {
                 const syncEl = document.createElement('div');
                 syncEl.className = 'data-item';
+                syncEl.style.display = 'block';
+                syncEl.style.padding = '1rem';
+                
+                const contactsStatus = sync.contacts_status || 'N/A';
+                const callsStatus = sync.calls_status || 'N/A';
+                const contactsTime = sync.contacts_last_sync ? new Date(sync.contacts_last_sync).toLocaleString() : 'Never';
+                const callsTime = sync.calls_last_sync ? new Date(sync.calls_last_sync).toLocaleString() : 'Never';
+                
+                const contactsStatusStyle = contactsStatus === 'success' ? 'color: #059669;' : contactsStatus === 'error' ? 'color: #dc2626;' : 'color: #6b7280;';
+                const callsStatusStyle = callsStatus === 'success' ? 'color: #059669;' : callsStatus === 'error' ? 'color: #dc2626;' : 'color: #6b7280;';
+                
                 syncEl.innerHTML = `
-                    <div>
-                        <strong>Contacts: ${sync.synced_contacts}</strong><br>
-                        <small>Calls: ${sync.synced_calls} - ${new Date(sync.created_at).toLocaleString()}</small>
+                    <div style="margin-bottom: 0.5rem;">
+                        <strong style="font-size: 1rem;">${sync.username}</strong> <span style="color: #6b7280; font-size: 0.875rem;">(${sync.user_name})</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.875rem;">
+                        <div>
+                            <strong>Contacts:</strong><br>
+                            <span style="${contactsStatusStyle}">●</span> ${contactsStatus.toUpperCase()}<br>
+                            <span style="color: #6b7280;">Last Sync: ${contactsTime}</span><br>
+                            <span style="color: #6b7280;">Count: ${sync.synced_contacts || 0}</span>
+                            ${sync.contacts_error ? `<br><span style="color: #dc2626; font-size: 0.75rem;">${sync.contacts_error}</span>` : ''}
+                        </div>
+                        <div>
+                            <strong>Call Logs:</strong><br>
+                            <span style="${callsStatusStyle}">●</span> ${callsStatus.toUpperCase()}<br>
+                            <span style="color: #6b7280;">Last Sync: ${callsTime}</span><br>
+                            <span style="color: #6b7280;">Count: ${sync.synced_calls || 0}</span>
+                            ${sync.calls_error ? `<br><span style="color: #dc2626; font-size: 0.75rem;">${sync.calls_error}</span>` : ''}
+                        </div>
                     </div>
                 `;
                 syncList.appendChild(syncEl);
@@ -707,6 +752,27 @@
                     console.error('Error searching contacts:', error);
                 }
             }, 300);
+        }
+
+        async function clearAllCallLogs() {
+            if (!confirm('Are you sure you want to clear ALL call logs? This action cannot be undone.')) return;
+
+            try {
+                const response = await apiRequest('/calls', {
+                    method: 'DELETE',
+                });
+
+                if (response.ok) {
+                    alert('All call logs cleared successfully');
+                    loadCalls();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Failed to clear call logs');
+                }
+            } catch (error) {
+                console.error('Error clearing call logs:', error);
+                alert('Error clearing call logs');
+            }
         }
 
         // Close modals when clicking outside
