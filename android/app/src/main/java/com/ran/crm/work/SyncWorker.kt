@@ -3,6 +3,7 @@ package com.ran.crm.work
 import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.work.*
+import com.ran.crm.R
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -93,7 +94,7 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
                         .setContentTitle(title)
                         .setTicker(title)
                         .setContentText("Syncing contacts and call logs...")
-                        .setSmallIcon(com.ran.crm.R.drawable.logo)
+                        .setSmallIcon(R.drawable.logo)
                         .setOngoing(true)
                         .build()
 
