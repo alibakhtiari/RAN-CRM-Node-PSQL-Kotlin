@@ -174,7 +174,6 @@ fun CrmApp(
     val navController = rememberNavController()
 
     // Permission Handling
-    val context = androidx.compose.ui.platform.LocalContext.current
     val permissions = remember {
         mutableListOf(
                         android.Manifest.permission.READ_CONTACTS,
@@ -192,9 +191,7 @@ fun CrmApp(
             androidx.activity.compose.rememberLauncherForActivityResult(
                     androidx.activity.result.contract.ActivityResultContracts
                             .RequestMultiplePermissions()
-            ) { permissionsMap ->
-                // Handle permission results if needed
-            }
+            ) {}
 
     androidx.compose.runtime.LaunchedEffect(Unit) { launcher.launch(permissions.toTypedArray()) }
 
