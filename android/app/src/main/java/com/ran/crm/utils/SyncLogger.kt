@@ -20,6 +20,8 @@ object SyncLogger {
     
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
 
+    private val scope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+
     fun log(message: String, error: Throwable? = null) {
         // 1. Log to Logcat
         if (error != null) {
@@ -33,7 +35,7 @@ object SyncLogger {
         // For now, a simple text file is sufficient for debugging.
         try {
             val context = com.ran.crm.CrmApplication.instance
-            GlobalScope.launch(Dispatchers.IO) {
+            scope.launch {
                 appendLogToFile(context, message, error)
             }
         } catch (e: Exception) {
