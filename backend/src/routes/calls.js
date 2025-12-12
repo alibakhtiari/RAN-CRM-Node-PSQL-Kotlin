@@ -50,7 +50,7 @@ router.get('/', async (req, res) => {
     const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].count);
 
-    const dataQuery = `SELECT cl.id, cl.user_id, cl.contact_id, cl.direction, cl.duration_seconds, cl.timestamp,
+    const dataQuery = `SELECT cl.id, cl.user_id, cl.contact_id, cl.direction, cl.duration_seconds, cl.timestamp, cl.phone_number,
             c.name as contact_name, c.phone_raw as contact_phone,
             u.username, u.name as user_name
      FROM call_logs cl
@@ -97,7 +97,7 @@ router.get('/:contact_id', async (req, res) => {
     const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(
-      `SELECT cl.id, cl.user_id, cl.contact_id, cl.direction, cl.duration_seconds, cl.timestamp,
+      `SELECT cl.id, cl.user_id, cl.contact_id, cl.direction, cl.duration_seconds, cl.timestamp, cl.phone_number,
               c.name as contact_name, c.phone_raw as contact_phone,
               u.name as user_name
        FROM call_logs cl
@@ -180,8 +180,8 @@ router.post('/', async (req, res) => {
         }
 
         const result = await client.query(
-          'INSERT INTO call_logs (user_id, contact_id, direction, duration_seconds, timestamp) VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id, contact_id, direction, duration_seconds, timestamp',
-          [req.user.id, finalContactId, direction, duration_seconds, timestamp || new Date()]
+          'INSERT INTO call_logs (user_id, contact_id, phone_number, direction, duration_seconds, timestamp) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, user_id, contact_id, phone_number, direction, duration_seconds, timestamp',
+          [req.user.id, finalContactId, phone_normalized, direction, duration_seconds, timestamp || new Date()]
         );
 
         insertedCalls.push(result.rows[0]);

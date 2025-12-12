@@ -29,6 +29,7 @@ CREATE TABLE call_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
+    phone_number VARCHAR(50),
     direction VARCHAR(10) CHECK(direction IN ('incoming', 'outgoing', 'missed')),
     duration_seconds INT,
     timestamp TIMESTAMPTZ DEFAULT now()
