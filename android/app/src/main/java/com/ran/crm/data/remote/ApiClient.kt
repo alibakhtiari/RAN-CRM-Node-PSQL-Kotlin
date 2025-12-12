@@ -1,79 +1,93 @@
 package com.ran.crm.data.remote
 
 import com.google.gson.GsonBuilder
+import java.util.concurrent.TimeUnit
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    private const val BASE_URL = "http://10.0.2.2:3000/" // Android emulator localhost
+    private const val BASE_URL = "https://nc.ramzarznegaran.com/" // Android emulator localhost
 
     private var authToken: String? = null
 
-    private val gson = GsonBuilder()
-        .setLenient()
-        .create()
+    @Suppress("DEPRECATION") private val gson = GsonBuilder().setLenient().create()
 
     private val okHttpClient: OkHttpClient by lazy {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
+        val loggingInterceptor =
+                HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
 
         OkHttpClient.Builder()
-            .addInterceptor { chain ->
-                val original = chain.request()
-                val requestBuilder = original.newBuilder()
-                
-                authToken?.let {
-                    requestBuilder.header("Authorization", "Bearer $it")
-                }
-                
-                val response = chain.proceed(requestBuilder.build())
-                
-                // Check for 401/403 (Unauthorized/Forbidden)
-                if (response.code == 401 || response.code == 403) {
-                    android.util.Log.e("ApiClient", "Auth error detected: ${response.code}. Triggering logout.")
-                    // Broadcast logout intent
-                    // Note: Accessing Application context via reflection or a static reference would be cleaner,
-                    // but for now we'll assume the app process is alive and we can broadcast.
-                    // Ideally, inject a SessionManager.
-                    try {
-                        val context = com.ran.crm.CrmApplication.instance
-                        val intent = android.content.Intent("com.ran.crm.ACTION_LOGOUT")
-                        intent.setPackage(context.packageName)
-                        context.sendBroadcast(intent)
-                    } catch (e: Exception) {
-                        android.util.Log.e("ApiClient", "Failed to broadcast logout", e)
+                .cookieJar(MemoryCookieJar())
+                .addInterceptor { chain ->
+                    val original = chain.request()
+                    val requestBuilder =
+                            original.newBuilder().header("User-Agent", "RanCrmAndroid/1.0")
+
+                    authToken?.let { requestBuilder.header("Authorization", "Bearer $it") }
+
+                    val response = chain.proceed(requestBuilder.build())
+
+                    // Check for 401/403 (Unauthorized/Forbidden)
+                    if (response.code == 401 || response.code == 403) {
+                        android.util.Log.e(
+                                "ApiClient",
+                                "Auth error detected: ${response.code}. Triggering logout."
+                        )
+                        // Broadcast logout intent
+                        // Note: Accessing Application context via reflection or a static reference
+                        // would be cleaner,
+                        // but for now we'll assume the app process is alive and we can broadcast.
+                        // Ideally, inject a SessionManager.
+                        try {
+                            val context = com.ran.crm.CrmApplication.instance
+                            val intent = android.content.Intent("com.ran.crm.ACTION_LOGOUT")
+                            intent.setPackage(context.packageName)
+                            context.sendBroadcast(intent)
+                        } catch (e: Exception) {
+                            android.util.Log.e("ApiClient", "Failed to broadcast logout", e)
+                        }
                     }
+
+                    response
                 }
-                
-                response
-            }
-            .addInterceptor(loggingInterceptor)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .build()
+                .addInterceptor(loggingInterceptor)
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .build()
     }
 
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .build()
+                .baseUrl(BASE_URL)
+                .client(okHttpClient)
+                .addConverterFactory(GsonConverterFactory.create(gson))
+                .build()
     }
 
-    val apiService: CrmApiService by lazy {
-        retrofit.create(CrmApiService::class.java)
-    }
+    val apiService: CrmApiService by lazy { retrofit.create(CrmApiService::class.java) }
 
     fun setAuthToken(token: String?) {
         authToken = token
     }
 
     fun getAuthToken(): String? = authToken
+
+    private class MemoryCookieJar : CookieJar {
+        private val cookieStore = HashMap<String, List<Cookie>>()
+
+        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+            cookieStore[url.host] = cookies
+        }
+
+        override fun loadForRequest(url: HttpUrl): List<Cookie> {
+            return cookieStore[url.host] ?: ArrayList()
+        }
+    }
 }
