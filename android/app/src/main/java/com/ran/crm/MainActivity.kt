@@ -106,7 +106,13 @@ class MainActivity : ComponentActivity() {
 
         // Register Call Log Observer
         callLogObserver = com.ran.crm.service.CallLogObserver(this)
-        callLogObserver.register()
+        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                        this,
+                        android.Manifest.permission.READ_CALL_LOG
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            callLogObserver.register()
+        }
 
         // Schedule Periodic Sync (WorkManager)
         val interval = preferenceManager.syncIntervalMinutes
@@ -148,7 +154,15 @@ class MainActivity : ComponentActivity() {
                 Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
-                ) { CrmApp(database, authRepository, preferenceManager, contactMigrationManager) }
+                ) {
+                    CrmApp(
+                            database,
+                            authRepository,
+                            preferenceManager,
+                            contactMigrationManager,
+                            onCallLogPermissionGranted = { callLogObserver.register() }
+                    )
+                }
             }
         }
     }
@@ -169,7 +183,8 @@ fun CrmApp(
         database: CrmDatabase,
         authRepository: AuthRepository,
         preferenceManager: com.ran.crm.data.local.PreferenceManager,
-        contactMigrationManager: com.ran.crm.data.manager.ContactMigrationManager
+        contactMigrationManager: com.ran.crm.data.manager.ContactMigrationManager,
+        onCallLogPermissionGranted: () -> Unit
 ) {
     val navController = rememberNavController()
 
@@ -177,6 +192,7 @@ fun CrmApp(
     val permissions = remember {
         mutableListOf(
                         android.Manifest.permission.READ_CONTACTS,
+                        android.Manifest.permission.WRITE_CONTACTS,
                         android.Manifest.permission.READ_CALL_LOG
                 )
                 .apply {
@@ -191,7 +207,11 @@ fun CrmApp(
             androidx.activity.compose.rememberLauncherForActivityResult(
                     androidx.activity.result.contract.ActivityResultContracts
                             .RequestMultiplePermissions()
-            ) {}
+            ) { perms ->
+                if (perms[android.Manifest.permission.READ_CALL_LOG] == true) {
+                    onCallLogPermissionGranted()
+                }
+            }
 
     androidx.compose.runtime.LaunchedEffect(Unit) { launcher.launch(permissions.toTypedArray()) }
 
