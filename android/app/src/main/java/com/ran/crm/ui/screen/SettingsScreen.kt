@@ -59,6 +59,11 @@ fun SettingsScreen(
                             .RequestMultiplePermissions()
             ) { permissionRefreshCount++ }
 
+    // Local state for immediate UI feedback
+    var currentTheme by remember { mutableStateOf(preferenceManager.appTheme) }
+    var currentScale by remember { mutableFloatStateOf(preferenceManager.fontScale) }
+    var currentInterval by remember { mutableIntStateOf(preferenceManager.syncIntervalMinutes) }
+
     // Permissions State
     val permissions = remember {
         buildList {
@@ -294,12 +299,12 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val currentInterval = preferenceManager.syncIntervalMinutes
                         ThemeOption(
                                 label = "15m",
                                 selected = currentInterval == 15,
                                 onClick = {
                                     preferenceManager.syncIntervalMinutes = 15
+                                    currentInterval = 15
                                     com.ran.crm.work.SyncWorker.schedulePeriodicSync(context, 15)
                                 }
                         )
@@ -308,6 +313,7 @@ fun SettingsScreen(
                                 selected = currentInterval == 30,
                                 onClick = {
                                     preferenceManager.syncIntervalMinutes = 30
+                                    currentInterval = 30
                                     com.ran.crm.work.SyncWorker.schedulePeriodicSync(context, 30)
                                 }
                         )
@@ -316,6 +322,7 @@ fun SettingsScreen(
                                 selected = currentInterval == 60,
                                 onClick = {
                                     preferenceManager.syncIntervalMinutes = 60
+                                    currentInterval = 60
                                     com.ran.crm.work.SyncWorker.schedulePeriodicSync(context, 60)
                                 }
                         )
@@ -324,6 +331,7 @@ fun SettingsScreen(
                                 selected = currentInterval == 0,
                                 onClick = {
                                     preferenceManager.syncIntervalMinutes = 0
+                                    currentInterval = 0
                                     com.ran.crm.work.SyncWorker.cancelPeriodicSync(context)
                                 }
                         )
@@ -348,21 +356,29 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val currentTheme = preferenceManager.appTheme
                         ThemeOption(
                                 label = "System",
                                 selected = currentTheme == "system",
-                                onClick = { preferenceManager.appTheme = "system" }
+                                onClick = {
+                                    preferenceManager.appTheme = "system"
+                                    currentTheme = "system"
+                                }
                         )
                         ThemeOption(
                                 label = "Light",
                                 selected = currentTheme == "light",
-                                onClick = { preferenceManager.appTheme = "light" }
+                                onClick = {
+                                    preferenceManager.appTheme = "light"
+                                    currentTheme = "light"
+                                }
                         )
                         ThemeOption(
                                 label = "Dark",
                                 selected = currentTheme == "dark",
-                                onClick = { preferenceManager.appTheme = "dark" }
+                                onClick = {
+                                    preferenceManager.appTheme = "dark"
+                                    currentTheme = "dark"
+                                }
                         )
                     }
 
@@ -374,13 +390,13 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val currentScale = preferenceManager.fontScale
                         ThemeOption(
                                 label = "Small",
                                 selected = currentScale == com.ran.crm.ui.AppConfig.SCALE_SMALL,
                                 onClick = {
                                     preferenceManager.fontScale =
                                             com.ran.crm.ui.AppConfig.SCALE_SMALL
+                                    currentScale = com.ran.crm.ui.AppConfig.SCALE_SMALL
                                 }
                         )
                         ThemeOption(
@@ -389,6 +405,7 @@ fun SettingsScreen(
                                 onClick = {
                                     preferenceManager.fontScale =
                                             com.ran.crm.ui.AppConfig.SCALE_MEDIUM
+                                    currentScale = com.ran.crm.ui.AppConfig.SCALE_MEDIUM
                                 }
                         )
                         ThemeOption(
@@ -397,6 +414,7 @@ fun SettingsScreen(
                                 onClick = {
                                     preferenceManager.fontScale =
                                             com.ran.crm.ui.AppConfig.SCALE_LARGE
+                                    currentScale = com.ran.crm.ui.AppConfig.SCALE_LARGE
                                 }
                         )
                     }
