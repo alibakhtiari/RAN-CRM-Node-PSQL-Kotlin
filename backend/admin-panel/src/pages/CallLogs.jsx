@@ -15,7 +15,7 @@ function CallLogs() {
             setLoading(true);
             const data = await api.getAllCallLogs(page, 20); // Fetch 20 per page
             setLogs(data.data);
-            setTotalPages(data.pagination.pages);
+            setTotalPages(data.pagination.totalPages);
             setError(null);
         } catch (err) {
             setError('Failed to load call logs');
@@ -49,6 +49,7 @@ function CallLogs() {
         return (
             (log.contact_name && log.contact_name.toLowerCase().includes(search)) ||
             (log.contact_phone && log.contact_phone.includes(search)) ||
+            (log.phone_number && log.phone_number.includes(search)) ||
             (log.user_name && log.user_name.toLowerCase().includes(search))
         );
     });
@@ -124,7 +125,7 @@ function CallLogs() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900">{log.contact_name || 'Unknown'}</div>
-                                            <div className="text-sm text-gray-500">{log.contact_phone}</div>
+                                            <div className="text-sm text-gray-500">{log.phone_number || log.contact_phone || ''}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {log.user_name || 'Unknown'}
