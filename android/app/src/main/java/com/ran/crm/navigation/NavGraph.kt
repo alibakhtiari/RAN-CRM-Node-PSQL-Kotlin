@@ -46,7 +46,8 @@ fun NavGraph(
                     onAddContactClick = {
                         navController.navigate(Screen.AddEditContact.createRoute("new"))
                     },
-                    contactRepository = contactRepository
+                    contactRepository = contactRepository,
+                    isUserAdmin = preferenceManager.isAdmin
             )
         }
 

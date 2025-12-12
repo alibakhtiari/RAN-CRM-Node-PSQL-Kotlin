@@ -32,7 +32,8 @@ fun ContactsScreen(
         onCallLogsClick: () -> Unit,
         onSettingsClick: () -> Unit,
         onAddContactClick: () -> Unit,
-        contactRepository: ContactRepository
+        contactRepository: ContactRepository,
+        isUserAdmin: Boolean
 ) {
     var contacts by remember { mutableStateOf<List<Contact>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
@@ -64,8 +65,10 @@ fun ContactsScreen(
                 TopAppBar(
                         title = { Text(stringResource(R.string.contacts)) },
                         actions = {
-                            TextButton(onClick = onCallLogsClick) {
-                                Text(stringResource(R.string.call_logs))
+                            if (isUserAdmin) {
+                                TextButton(onClick = onCallLogsClick) {
+                                    Text(stringResource(R.string.call_logs))
+                                }
                             }
                             IconButton(onClick = onSettingsClick) {
                                 Icon(
