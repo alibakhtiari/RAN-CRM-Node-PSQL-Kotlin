@@ -190,7 +190,12 @@ class SyncManager(private val context: Context) {
 
             // 1. Import from Device (Always do this to capture new calls)
             try {
-                val callLogReader = com.ran.crm.utils.CallLogReader(context, callLogRepository)
+                val callLogReader =
+                        com.ran.crm.utils.CallLogReader(
+                                context,
+                                callLogRepository,
+                                contactRepository
+                        )
                 val importResult = callLogReader.importDeviceCallLogs()
                 SyncLogger.log(
                         "Call Log Import: Imported=${importResult.imported}, Skipped=${importResult.skipped}, Errors=${importResult.errors}"
