@@ -114,15 +114,23 @@ fun GlobalCallLogItem(callLog: CallLog) {
 
             Column(modifier = Modifier.weight(1f)) {
                 // Contact name or phone number
+                // Logic: If we have a contact name, show it. If not, show the phone number.
+                // If we also don't have a phone number, show "Unknown".
+                val displayText = if (!callLog.contactName.isNullOrBlank() && callLog.contactName != "Unknown") {
+                    callLog.contactName
+                } else {
+                    callLog.phoneNumber ?: "Unknown"
+                }
+
                 Text(
-                        text = callLog.contactName ?: callLog.phoneNumber ?: "Unknown",
+                        text = displayText,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold
                 )
 
-                // Phone Number
+                // User who uploaded this log (restored as per request)
                 Text(
-                        text = callLog.phoneNumber ?: "",
+                        text = "${callLog.userName ?: "Unknown"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                 )

@@ -190,6 +190,8 @@ class SyncManager(private val context: Context) {
 
             // 1. Import from Device (Always do this to capture new calls)
             try {
+                // Explicitly passing all 3 arguments to fix reported "No value passed for
+                // parameter" error
                 val callLogReader =
                         com.ran.crm.utils.CallLogReader(
                                 context,
