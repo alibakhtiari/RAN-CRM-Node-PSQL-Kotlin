@@ -9,7 +9,8 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || 'password',
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000, // Increased to 10s
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
 });
 
 pool.on('connect', (client) => {
@@ -18,7 +19,7 @@ pool.on('connect', (client) => {
 
 pool.on('error', (err, client) => {
   console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  // Do NOT exit process, let it recover
 });
 
 module.exports = pool;
