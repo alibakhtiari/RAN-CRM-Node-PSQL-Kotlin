@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const pool = require('../config/database');
+const db = require('../config/knex'); // Use Knex
 const { authenticateToken } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { getPaginationParams, getPaginationResult } = require('../utils/pagination');
@@ -15,15 +15,16 @@ router.get('/', async (req, res) => {
   try {
     const { page, limit, offset } = getPaginationParams(req);
 
-    const countResult = await pool.query('SELECT COUNT(*) FROM users');
-    const total = parseInt(countResult.rows[0].count);
+    const countResult = await db('users').count('id as count').first();
+    const total = parseInt(countResult.count);
 
-    const result = await pool.query(
-      'SELECT id, username, name, is_admin, created_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-      [limit, offset]
-    );
+    const users = await db('users')
+      .select('id', 'username', 'name', 'is_admin', 'created_at')
+      .orderBy('created_at', 'desc')
+      .limit(limit)
+      .offset(offset);
 
-    res.json(getPaginationResult(result.rows, total, page, limit));
+    res.json(getPaginationResult(users, total, page, limit));
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -40,8 +41,8 @@ router.post('/', async (req, res) => {
     }
 
     // Check if username already exists
-    const existingUsername = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
-    if (existingUsername.rows.length > 0) {
+    const existingUser = await db('users').where({ username }).first();
+    if (existingUser) {
       return res.status(409).json({ error: 'Username already exists' });
     }
 
@@ -49,12 +50,16 @@ router.post('/', async (req, res) => {
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    const result = await pool.query(
-      'INSERT INTO users (username, name, password_hash, is_admin) VALUES ($1, $2, $3, $4) RETURNING id, username, name, is_admin, created_at',
-      [username, name, passwordHash, is_admin]
-    );
+    const [newUser] = await db('users')
+      .insert({
+        username,
+        name,
+        password_hash: passwordHash,
+        is_admin
+      })
+      .returning(['id', 'username', 'name', 'is_admin', 'created_at']);
 
-    res.status(201).json({ user: result.rows[0] });
+    res.status(201).json({ user: newUser });
   } catch (error) {
     console.error('Create user error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -67,39 +72,28 @@ router.patch('/:id', async (req, res) => {
     const { id } = req.params;
     const { name, is_admin, password } = req.body;
 
-    const updates = [];
-    const values = [];
-    let queryIndex = 1;
-
-    if (name) {
-      updates.push(`name = $${queryIndex++}`);
-      values.push(name);
-    }
-    if (is_admin !== undefined) {
-      updates.push(`is_admin = $${queryIndex++}`);
-      values.push(is_admin);
-    }
+    const updates = {};
+    if (name) updates.name = name;
+    if (is_admin !== undefined) updates.is_admin = is_admin;
     if (password) {
       const saltRounds = 12;
-      const passwordHash = await bcrypt.hash(password, saltRounds);
-      updates.push(`password_hash = $${queryIndex++}`);
-      values.push(passwordHash);
+      updates.password_hash = await bcrypt.hash(password, saltRounds);
     }
 
-    if (updates.length === 0) {
+    if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
-    values.push(id);
-    const query = `UPDATE users SET ${updates.join(', ')} WHERE id = $${queryIndex} RETURNING id, username, name, is_admin, created_at`;
+    const [updatedUser] = await db('users')
+      .where({ id })
+      .update(updates)
+      .returning(['id', 'username', 'name', 'is_admin', 'created_at']);
 
-    const result = await pool.query(query, values);
-
-    if (result.rows.length === 0) {
+    if (!updatedUser) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user: result.rows[0] });
+    res.json({ user: updatedUser });
   } catch (error) {
     console.error('Update user error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -116,9 +110,9 @@ router.delete('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
 
-    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+    const rowsDeleted = await db('users').where({ id }).delete();
 
-    if (result.rows.length === 0) {
+    if (rowsDeleted === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 

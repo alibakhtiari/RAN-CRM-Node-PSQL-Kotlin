@@ -1,5 +1,5 @@
 const express = require('express');
-const pool = require('../config/database');
+const db = require('../config/knex'); // Use Knex
 const { authenticateToken } = require('../middleware/auth');
 const { getPaginationParams, getPaginationResult } = require('../utils/pagination');
 const { normalizePhoneNumber } = require('../utils/phone');
@@ -15,53 +15,37 @@ router.get('/', async (req, res) => {
     const { page, limit, offset } = getPaginationParams(req);
     const { updated_since } = req.query;
 
-    let whereClause = '';
-    let countParams = [];
-    let dataParams = [];
+    let query = db('call_logs as cl')
+      .leftJoin('contacts as c', 'cl.contact_id', 'c.id')
+      .leftJoin('users as u', 'cl.user_id', 'u.id')
+      .select(
+        'cl.id', 'cl.user_id', 'cl.contact_id', 'cl.direction', 'cl.duration_seconds', 'cl.timestamp', 'cl.phone_number',
+        'c.name as contact_name', 'c.phone_raw as contact_phone',
+        'u.username', 'u.name as user_name'
+      );
 
-    // Filter by user if not admin
-    const userFilter = req.user.is_admin ? '' : 'cl.user_id = $1';
+    let countQuery = db('call_logs as cl').count('* as count');
 
-    // Delta sync support
-    if (updated_since) {
-      const timeFilter = 'cl.timestamp > $' + (req.user.is_admin ? '1' : '2');
-      whereClause = userFilter
-        ? `WHERE ${userFilter} AND ${timeFilter}`
-        : `WHERE ${timeFilter}`;
-
-      if (req.user.is_admin) {
-        countParams = [new Date(updated_since)];
-        dataParams = [new Date(updated_since), limit, offset];
-      } else {
-        countParams = [req.user.id, new Date(updated_since)];
-        dataParams = [req.user.id, new Date(updated_since), limit, offset];
-      }
-    } else {
-      whereClause = userFilter ? `WHERE ${userFilter}` : '';
-      if (req.user.is_admin) {
-        dataParams = [limit, offset];
-      } else {
-        countParams = [req.user.id];
-        dataParams = [req.user.id, limit, offset];
-      }
+    if (!req.user.is_admin) {
+      query.where('cl.user_id', req.user.id);
+      countQuery.where('cl.user_id', req.user.id);
     }
 
-    const countQuery = `SELECT COUNT(*) FROM call_logs cl ${whereClause}`;
-    const countResult = await pool.query(countQuery, countParams);
-    const total = parseInt(countResult.rows[0].count);
+    if (updated_since) {
+      const since = new Date(updated_since);
+      query.where('cl.timestamp', '>', since);
+      countQuery.where('cl.timestamp', '>', since);
+    }
 
-    const dataQuery = `SELECT cl.id, cl.user_id, cl.contact_id, cl.direction, cl.duration_seconds, cl.timestamp, cl.phone_number,
-            c.name as contact_name, c.phone_raw as contact_phone,
-            u.username, u.name as user_name
-     FROM call_logs cl
-     LEFT JOIN contacts c ON cl.contact_id = c.id
-     LEFT JOIN users u ON cl.user_id = u.id
-     ${whereClause}
-     ORDER BY cl.timestamp DESC LIMIT $${req.user.is_admin ? (updated_since ? '2' : '1') : (updated_since ? '3' : '2')} OFFSET $${req.user.is_admin ? (updated_since ? '3' : '2') : (updated_since ? '4' : '3')}`;
+    const countResult = await countQuery.first();
+    const total = parseInt(countResult.count);
 
-    const result = await pool.query(dataQuery, dataParams);
+    const calls = await query
+      .orderBy('cl.timestamp', 'desc')
+      .limit(limit)
+      .offset(offset);
 
-    res.json(getPaginationResult(result.rows, total, page, limit));
+    res.json(getPaginationResult(calls, total, page, limit));
   } catch (error) {
     console.error('Get calls error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -75,47 +59,40 @@ router.get('/:contact_id', async (req, res) => {
     const { page, limit, offset } = getPaginationParams(req);
 
     // Verify contact exists and user has access
-    // Check if contact exists and belongs to user (or user is admin)
-    let contactCheckQuery = 'SELECT id FROM contacts WHERE id = $1';
-    let contactCheckParams = [contact_id];
-
+    const contactCheck = db('contacts').select('id').where({ id: contact_id });
     if (!req.user.is_admin) {
-      contactCheckQuery += ' AND created_by = $2';
-      contactCheckParams.push(req.user.id);
+      contactCheck.where({ created_by: req.user.id });
     }
+    const contact = await contactCheck.first();
 
-    const contactCheck = await pool.query(contactCheckQuery, contactCheckParams);
-
-    if (contactCheck.rows.length === 0) {
+    if (!contact) {
       return res.status(404).json({ error: 'Contact not found or access denied' });
     }
 
-    const countResult = await pool.query(
-      'SELECT COUNT(*) FROM call_logs WHERE contact_id = $1',
-      [contact_id]
-    );
-    const total = parseInt(countResult.rows[0].count);
+    const countResult = await db('call_logs').where({ contact_id }).count('* as count').first();
+    const total = parseInt(countResult.count);
 
-    const result = await pool.query(
-      `SELECT cl.id, cl.user_id, cl.contact_id, cl.direction, cl.duration_seconds, cl.timestamp, cl.phone_number,
-              c.name as contact_name, c.phone_raw as contact_phone,
-              u.name as user_name
-       FROM call_logs cl
-       LEFT JOIN contacts c ON cl.contact_id = c.id
-       LEFT JOIN users u ON cl.user_id = u.id
-       WHERE cl.contact_id = $1
-       ORDER BY cl.timestamp DESC LIMIT $2 OFFSET $3`,
-      [contact_id, limit, offset]
-    );
+    const calls = await db('call_logs as cl')
+      .leftJoin('contacts as c', 'cl.contact_id', 'c.id')
+      .leftJoin('users as u', 'cl.user_id', 'u.id')
+      .select(
+        'cl.id', 'cl.user_id', 'cl.contact_id', 'cl.direction', 'cl.duration_seconds', 'cl.timestamp', 'cl.phone_number',
+        'c.name as contact_name', 'c.phone_raw as contact_phone',
+        'u.name as user_name'
+      )
+      .where('cl.contact_id', contact_id)
+      .orderBy('cl.timestamp', 'desc')
+      .limit(limit)
+      .offset(offset);
 
-    res.json(getPaginationResult(result.rows, total, page, limit));
+    res.json(getPaginationResult(calls, total, page, limit));
   } catch (error) {
     console.error('Get contact calls error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// POST /calls
+// POST /calls (Bulk Upload)
 router.post('/', async (req, res) => {
   try {
     const { calls } = req.body;
@@ -128,11 +105,13 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Maximum 1000 calls per request' });
     }
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    const insertedCalls = await db.transaction(async (trx) => {
+      const results = [];
+      const userContacts = await trx('contacts')
+        .select('id', 'phone_normalized')
+        .where({ created_by: req.user.id });
 
-      const insertedCalls = [];
+      const contactMap = new Map(userContacts.map(c => [c.phone_normalized, c.id]));
 
       for (const call of calls) {
         const { contact_id, direction, duration_seconds, timestamp, phone_normalized } = call;
@@ -140,68 +119,65 @@ router.post('/', async (req, res) => {
         if (!direction || !['incoming', 'outgoing', 'missed'].includes(direction)) {
           throw new Error(`Invalid direction: ${direction}`);
         }
-
         if (duration_seconds < 0) {
           throw new Error('Duration must be non-negative');
         }
 
         let finalContactId = contact_id;
-
-        // If no contact_id but phone_normalized provided, try to find matching contact
         if (!finalContactId && phone_normalized) {
-          const normalizedPhone = normalizePhoneNumber(phone_normalized);
-          const contactResult = await client.query(
-            'SELECT id FROM contacts WHERE phone_normalized = $1 AND created_by = $2',
-            [normalizedPhone, req.user.id]
-          );
-          if (contactResult.rows.length > 0) {
-            finalContactId = contactResult.rows[0].id;
-          }
+          const normalized = normalizePhoneNumber(phone_normalized);
+          finalContactId = contactMap.get(normalized) || null;
         }
 
-        // Check for duplicates before inserting
-        const duplicateCheck = await client.query(
-          `SELECT id FROM call_logs 
-           WHERE user_id = $1 
-           AND direction = $2 
-           AND duration_seconds = $3 
-           AND timestamp >= $4::timestamp - interval '1 second'
-           AND timestamp <= $4::timestamp + interval '1 second'
-           AND (
-             (contact_id IS NOT NULL AND contact_id = $5) OR 
-             (contact_id IS NULL AND $5 IS NULL)
-           )`,
-          [req.user.id, direction, duration_seconds, timestamp || new Date(), finalContactId]
-        );
+        // Duplicate Check
+        const callTime = new Date(timestamp || Date.now());
+        const startWindow = new Date(callTime.getTime() - 1000);
+        const endWindow = new Date(callTime.getTime() + 1000);
 
-        if (duplicateCheck.rows.length > 0) {
-          // Skip duplicate
-          continue;
-        }
+        const existingCall = await trx('call_logs')
+          .select('id')
+          .where({
+            user_id: req.user.id,
+            direction,
+            duration_seconds
+          })
+          .andWhere('timestamp', '>=', startWindow)
+          .andWhere('timestamp', '<=', endWindow)
+          .andWhere(function () {
+            if (finalContactId) {
+              this.where('contact_id', finalContactId);
+            } else {
+              this.whereNull('contact_id');
+            }
+          })
+          .first();
 
-        const result = await client.query(
-          'INSERT INTO call_logs (user_id, contact_id, phone_number, direction, duration_seconds, timestamp) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, user_id, contact_id, phone_number, direction, duration_seconds, timestamp',
-          [req.user.id, finalContactId, phone_normalized, direction, duration_seconds, timestamp || new Date()]
-        );
+        if (existingCall) continue;
 
-        insertedCalls.push(result.rows[0]);
+        const [newCall] = await trx('call_logs')
+          .insert({
+            user_id: req.user.id,
+            contact_id: finalContactId,
+            phone_number: phone_normalized,
+            direction,
+            duration_seconds,
+            timestamp: callTime
+          })
+          .returning('*');
+
+        results.push(newCall);
       }
+      return results;
+    });
 
-      await client.query('COMMIT');
-      res.status(201).json({ calls: insertedCalls, count: insertedCalls.length });
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    res.status(201).json({ calls: insertedCalls, count: insertedCalls.length });
   } catch (error) {
     console.error('Bulk upload calls error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// DELETE /calls/:id - Admin only, delete single call log
+// DELETE /calls/:id
 router.delete('/:id', async (req, res) => {
   try {
     if (!req.user.is_admin) {
@@ -209,9 +185,9 @@ router.delete('/:id', async (req, res) => {
     }
 
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM call_logs WHERE id = $1', [id]);
+    const rowsDeleted = await db('call_logs').where({ id }).delete();
 
-    if (result.rowCount === 0) {
+    if (rowsDeleted === 0) {
       return res.status(404).json({ error: 'Call log not found' });
     }
 
@@ -222,18 +198,17 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// DELETE /calls - Admin only, clear all call logs
+// DELETE /calls (Clear all)
 router.delete('/', async (req, res) => {
   try {
-    // Check if user is admin (requireAdmin middleware will be added in router registration)
     if (!req.user.is_admin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    const result = await pool.query('DELETE FROM call_logs');
+    const rowsDeleted = await db('call_logs').delete();
     res.json({
       message: 'All call logs cleared successfully',
-      deleted_count: result.rowCount
+      deleted_count: rowsDeleted
     });
   } catch (error) {
     console.error('Delete all calls error:', error);
