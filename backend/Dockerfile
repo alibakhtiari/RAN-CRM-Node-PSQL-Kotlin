@@ -19,7 +19,7 @@ WORKDIR /app
 # Copy backend dependency files
 COPY package*.json ./
 # Install backend deps (only production)
-RUN npm install --only=production
+RUN npm install --omit=dev --ignore-scripts
 
 # Copy backend source code
 COPY . .
@@ -31,4 +31,6 @@ COPY --from=frontend-builder /app_build/public/admin ./public/admin
 EXPOSE 3000
 
 # Start command
+RUN chown -R node:node /app
+USER node
 CMD ["npm", "start"]
