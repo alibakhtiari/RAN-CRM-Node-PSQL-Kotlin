@@ -29,6 +29,7 @@ CREATE TABLE call_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
+    phone_number VARCHAR(50),
     direction VARCHAR(10) CHECK(direction IN ('incoming', 'outgoing', 'missed')),
     duration_seconds INT,
     timestamp TIMESTAMPTZ DEFAULT now()
@@ -53,3 +54,7 @@ CREATE INDEX idx_call_logs_contact ON call_logs(contact_id);
 CREATE INDEX idx_call_logs_timestamp ON call_logs(timestamp DESC);
 CREATE INDEX idx_call_logs_user_timestamp ON call_logs(user_id, timestamp DESC);
 CREATE INDEX idx_sync_audit_user ON sync_audit(user_id, created_at DESC);
+
+-- NOTE: Ensure the application user has ownership or permissions
+-- ALTER TABLE contacts OWNER TO "app_user";
+

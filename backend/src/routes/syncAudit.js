@@ -1,5 +1,5 @@
 const express = require('express');
-const pool = require('../config/database');
+const db = require('../config/knex'); // Use Knex
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -10,7 +10,8 @@ router.use(authenticateToken);
 // GET /sync-audit - Get sync audit data (admin only)
 router.get('/', requireAdmin, async (req, res) => {
     try {
-        // Get last sync for each user
+        // Complex query rewrite to Knex raw or builders
+        // Keeping it raw for simplicity but running through Knex
         const query = `
       WITH last_syncs AS (
         SELECT DISTINCT ON (user_id, sync_type)
@@ -42,7 +43,7 @@ router.get('/', requireAdmin, async (req, res) => {
       ORDER BY u.username
     `;
 
-        const result = await pool.query(query);
+        const result = await db.raw(query);
         res.json({ sync_audits: result.rows });
     } catch (error) {
         console.error('Get sync audit error:', error);
@@ -68,14 +69,18 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Invalid status' });
         }
 
-        const result = await pool.query(
-            `INSERT INTO sync_audit (user_id, sync_type, status, error_message, synced_contacts, synced_calls)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, user_id, sync_type, status, created_at`,
-            [req.user.id, sync_type, status, error_message || null, synced_contacts, synced_calls]
-        );
+        const [newAudit] = await db('sync_audit')
+            .insert({
+                user_id: req.user.id,
+                sync_type,
+                status,
+                error_message: error_message || null,
+                synced_contacts,
+                synced_calls
+            })
+            .returning(['id', 'user_id', 'sync_type', 'status', 'created_at']);
 
-        res.status(201).json({ sync_audit: result.rows[0] });
+        res.status(201).json({ sync_audit: newAudit });
     } catch (error) {
         console.error('Create sync audit error:', error);
         res.status(500).json({ error: 'Internal server error' });

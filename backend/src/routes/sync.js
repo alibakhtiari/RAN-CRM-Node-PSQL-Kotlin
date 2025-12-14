@@ -1,5 +1,5 @@
 const express = require('express');
-const pool = require('../config/database');
+const db = require('../config/knex'); // Use Knex
 const { authenticateToken } = require('../middleware/auth');
 const { getPaginationParams, getPaginationResult } = require('../utils/pagination');
 
@@ -13,15 +13,16 @@ router.get('/', async (req, res) => {
   try {
     const { page, limit, offset } = getPaginationParams(req);
 
-    const countResult = await pool.query('SELECT COUNT(*) FROM sync_audit');
-    const total = parseInt(countResult.rows[0].count);
+    const countResult = await db('sync_audit').count('* as count').first();
+    const total = parseInt(countResult.count);
 
-    const result = await pool.query(
-      'SELECT id, user_id, synced_contacts, synced_calls, created_at FROM sync_audit ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-      [limit, offset]
-    );
+    const audits = await db('sync_audit')
+      .select('id', 'user_id', 'synced_contacts', 'synced_calls', 'created_at')
+      .orderBy('created_at', 'desc')
+      .limit(limit)
+      .offset(offset);
 
-    res.json(getPaginationResult(result.rows, total, page, limit));
+    res.json(getPaginationResult(audits, total, page, limit));
   } catch (error) {
     console.error('Get sync audit error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -33,12 +34,15 @@ router.post('/', async (req, res) => {
   try {
     const { synced_contacts = 0, synced_calls = 0 } = req.body;
 
-    const result = await pool.query(
-      'INSERT INTO sync_audit (user_id, synced_contacts, synced_calls) VALUES ($1, $2, $3) RETURNING id, user_id, synced_contacts, synced_calls, created_at',
-      [req.user.id, synced_contacts, synced_calls]
-    );
+    const [newRecord] = await db('sync_audit')
+      .insert({
+        user_id: req.user.id,
+        synced_contacts,
+        synced_calls
+      })
+      .returning(['id', 'user_id', 'synced_contacts', 'synced_calls', 'created_at']);
 
-    res.status(201).json({ sync_record: result.rows[0] });
+    res.status(201).json({ sync_record: newRecord });
   } catch (error) {
     console.error('Create sync audit error:', error);
     res.status(500).json({ error: 'Internal server error' });

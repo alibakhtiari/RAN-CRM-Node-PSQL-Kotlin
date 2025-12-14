@@ -1,9 +1,13 @@
 const express = require('express');
-const pool = require('../config/database');
+const db = require('../config/knex'); // Use Knex
 const { authenticateToken } = require('../middleware/auth');
 const { getPaginationParams, getPaginationResult } = require('../utils/pagination');
 const { normalizePhoneNumber } = require('../utils/phone');
 const { Parser } = require('json2csv');
+const contactsRepository = require('../repositories/contactsRepository');
+const validate = require('../middleware/validate');
+const asyncHandler = require('../middleware/asyncHandler');
+const { createContactSchema, updateContactSchema, batchStructureSchema } = require('../schemas/contactSchemas');
 
 const router = express.Router();
 
@@ -16,397 +20,255 @@ const checkOwnership = (contact, user) => {
   return contact.created_by === user.id || user.is_admin;
 };
 
-// GET /contacts
-router.get('/', async (req, res) => {
-  try {
-    const { page, limit, offset } = getPaginationParams(req);
-    const { updated_since } = req.query;
+// Shared handler for getting contacts
+const getContacts = asyncHandler(async (req, res) => {
+  const { page, limit, offset } = getPaginationParams(req);
+  const { updated_since, q } = req.query;
 
-    let whereClause = '';
-    let countParams = [];
-    let dataParams = [];
+  const search = (q && q.trim().length >= 2) ? q : null;
+  const updatedSince = updated_since ? new Date(updated_since) : null;
 
-    // Delta sync support
-    if (updated_since) {
-      whereClause = 'WHERE c.updated_at > $1';
-      countParams = [new Date(updated_since)];
-      dataParams = [new Date(updated_since), limit, offset];
-    } else {
-      dataParams = [limit, offset];
+  if (search) {
+    // Set similarity threshold if searching using raw query before the main query
+    try {
+      await db.raw('SET LOCAL pg_trgm.similarity_threshold = 0.3');
+    } catch (e) {
+      // Ignore if pg_trgm is not available or fails, allowing partial search to try ILIKE
+      console.warn('pg_trgm setup failed, proceeding without similarity threshold:', e.message);
     }
-
-    const countQuery = `SELECT COUNT(*) FROM contacts c ${whereClause}`;
-    const countResult = await pool.query(countQuery, countParams);
-    const total = parseInt(countResult.rows[0].count);
-
-    const dataQuery = updated_since
-      ? `SELECT c.id, c.name, c.phone_raw, c.phone_normalized, c.created_by, c.created_at, c.updated_at, u.name as creator_name 
-         FROM contacts c 
-         LEFT JOIN users u ON c.created_by = u.id 
-         ${whereClause} 
-         ORDER BY c.updated_at DESC LIMIT $2 OFFSET $3`
-      : `SELECT c.id, c.name, c.phone_raw, c.phone_normalized, c.created_by, c.created_at, c.updated_at, u.name as creator_name 
-         FROM contacts c 
-         LEFT JOIN users u ON c.created_by = u.id 
-         ORDER BY c.updated_at DESC LIMIT $1 OFFSET $2`;
-
-    const result = await pool.query(dataQuery, dataParams);
-
-    res.json(getPaginationResult(result.rows, total, page, limit));
-  } catch (error) {
-    console.error('Get contacts error:', error);
-    res.status(500).json({ error: 'Internal server error' });
   }
+
+  const total = await contactsRepository.count({ updatedSince, search });
+  const contacts = await contactsRepository.findAll({ limit, offset, updatedSince, search });
+
+  res.json(getPaginationResult(contacts, total, page, limit));
 });
 
-// GET /contacts/search?q=
-router.get('/search', async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q || q.trim().length < 2) {
-      return res.status(400).json({ error: 'Search query must be at least 2 characters' });
-    }
+// GET /contacts
+router.get('/', getContacts);
 
-    const { page, limit, offset } = getPaginationParams(req);
-
-    // Set similarity threshold for this transaction/request
-    // Note: In a connection pool, SET LOCAL is safer if we wrapped in transaction, 
-    // but for a single query, we can just rely on the default or set it.
-    // However, `pg_trgm.similarity_threshold` is a session variable.
-    // Let's set it before the query.
-    await pool.query('SET pg_trgm.similarity_threshold = 0.3');
-
-    // Use % operator for trigram fuzzy matching on name
-    // Use ILIKE for phone_raw as numbers don't work well with trigrams usually, 
-    // unless we index them as text specifically for it.
-    const searchQuery = q;
-    const likeQuery = `%${q}%`;
-
-    const countResult = await pool.query(
-      'SELECT COUNT(*) FROM contacts WHERE name % $1 OR phone_raw ILIKE $2',
-      [searchQuery, likeQuery]
-    );
-    const total = parseInt(countResult.rows[0].count);
-
-    const result = await pool.query(
-      `SELECT c.id, c.name, c.phone_raw, c.phone_normalized, c.created_by, c.created_at, c.updated_at, u.name as creator_name 
-       FROM contacts c 
-       LEFT JOIN users u ON c.created_by = u.id 
-       WHERE c.name % $1 OR c.phone_raw ILIKE $2
-       ORDER BY c.name <-> $1 ASC, c.created_at DESC 
-       LIMIT $3 OFFSET $4`,
-      [searchQuery, likeQuery, limit, offset]
-    );
-
-    res.json(getPaginationResult(result.rows, total, page, limit));
-  } catch (error) {
-    console.error('Search contacts error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+// GET /contacts/search - Legacy/Alias
+router.get('/search', (req, res, next) => {
+  const { q } = req.query;
+  if (!q || q.trim().length < 2) {
+    return res.status(400).json({ error: 'Search query must be at least 2 characters' });
   }
+  return getContacts(req, res, next);
 });
 
 // POST /contacts
-router.post('/', async (req, res) => {
-  try {
-    const { name, phone_raw, phone_normalized, created_at } = req.body;
+router.post('/', validate(createContactSchema), asyncHandler(async (req, res) => {
+  const { name, phone_raw, phone_normalized, created_at } = req.body;
 
-    if (!name || !phone_raw) {
-      return res.status(400).json({ error: 'Name and phone_raw are required' });
-    }
+  const normalizedPhone = normalizePhoneNumber(phone_raw);
 
-    // Normalize phone number server-side
-    const normalizedPhone = normalizePhoneNumber(phone_raw);
+  const newContact = await db.transaction(async (trx) => {
+    // Check if a contact with this phone number already exists
+    const existing = await trx('contacts')
+      .select('id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at')
+      .where({ phone_normalized: normalizedPhone })
+      .first();
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    if (existing) {
+      if (existing.created_by === req.user.id) {
+        // Update if existing belongs to user and is newer
+        const incomingDate = new Date(created_at || new Date());
+        const existingDate = new Date(existing.created_at);
 
-      // Check if a contact with this phone number already exists
-      const existingResult = await client.query(
-        'SELECT id, name, phone_raw, phone_normalized, created_by, created_at, updated_at FROM contacts WHERE phone_normalized = $1',
-        [normalizedPhone]
-      );
-
-      if (existingResult.rows.length > 0) {
-        const existing = existingResult.rows[0];
-        const incomingCreatedAt = new Date(created_at || new Date());
-
-        // If the existing contact belongs to the same user
-        if (existing.created_by === req.user.id) {
-          // Update the existing contact with newer data if incoming is newer
-          if (incomingCreatedAt >= new Date(existing.created_at)) {
-            const updateResult = await client.query(
-              'UPDATE contacts SET name = $1, phone_raw = $2, updated_at = NOW() WHERE id = $3 RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
-              [name, phone_raw, existing.id]
-            );
-            await client.query('COMMIT');
-            return res.json({ contact: updateResult.rows[0] });
-          } else {
-            // Return existing contact
-            await client.query('COMMIT');
-            return res.json({ contact: existing });
-          }
+        if (incomingDate >= existingDate) {
+          const [updated] = await trx('contacts')
+            .where({ id: existing.id })
+            .update({
+              name,
+              phone_raw,
+              updated_at: trx.fn.now()
+            })
+            .returning(['id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at']);
+          return updated;
         } else {
-          // Contact exists but belongs to different user
-          // Return conflict error - don't allow duplicate contacts across users
-          await client.query('COMMIT');
-          return res.status(409).json({
-            error: 'Contact with this phone number already exists',
-            existing_contact: {
-              id: existing.id,
-              name: existing.name,
-              phone_raw: existing.phone_raw,
-              created_by: existing.created_by,
-              created_at: existing.created_at
-            }
-          });
+          return existing;
         }
+      } else {
+        // Conflict
+        const error = new Error('Contact with this phone number already exists');
+        error.status = 409;
+        error.data = {
+          existing_contact: existing
+        };
+        throw error;
       }
-
-      // No existing contact found, create new one
-      const result = await client.query(
-        'INSERT INTO contacts (name, phone_raw, phone_normalized, created_by, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at',
-        [name, phone_raw, normalizedPhone, req.user.id, created_at || new Date()]
-      );
-
-      await client.query('COMMIT');
-      return res.status(201).json({ contact: result.rows[0] });
-
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
     }
-  } catch (error) {
-    console.error('Create contact error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+
+    // Create new
+    const [created] = await trx('contacts')
+      .insert({
+        name,
+        phone_raw,
+        phone_normalized: normalizedPhone,
+        created_by: req.user.id,
+        created_at: created_at || new Date()
+      })
+      .returning(['id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at']);
+
+    return created;
+  });
+
+  res.status(201).json({ contact: newContact });
+}));
 
 // POST /contacts/batch
-router.post('/batch', async (req, res) => {
-  try {
-    const { contacts } = req.body;
+router.post('/batch', validate(batchStructureSchema), asyncHandler(async (req, res) => {
+  const { contacts, force_restore } = req.body;
 
-    if (!Array.isArray(contacts) || contacts.length === 0) {
-      return res.status(400).json({ error: 'Contacts array is required and must not be empty' });
-    }
-
-    if (contacts.length > 1000) {
-      return res.status(400).json({ error: 'Maximum 1000 contacts per batch request' });
-    }
-
-    // 1. Prepare data arrays for bulk insert
-    const names = [];
-    const phonesRaw = [];
-    const phonesNormalized = [];
-    const createdAts = [];
-    const errors = [];
-
-    for (let i = 0; i < contacts.length; i++) {
-      const contact = contacts[i];
-      if (!contact.name || !contact.phone_raw) {
-        errors.push({ index: i, error: 'Name and phone_raw are required', contact });
-        continue;
-      }
-      try {
-        const normalized = normalizePhoneNumber(contact.phone_raw);
-        names.push(contact.name);
-        phonesRaw.push(contact.phone_raw);
-        phonesNormalized.push(normalized);
-        createdAts.push(contact.created_at || new Date().toISOString());
-      } catch (e) {
-        errors.push({ index: i, error: e.message, contact });
-      }
-    }
-
-    if (names.length === 0) {
-      return res.status(200).json({
-        results: [],
-        errors,
-        summary: { total: contacts.length, created: 0, updated: 0, existing: 0, errors: errors.length }
-      });
-    }
-
-    // 2. Execute single Upsert query
-    // We use UNNEST to unpack arrays into rows
-    const query = `
-      INSERT INTO contacts (name, phone_raw, phone_normalized, created_by, created_at)
-      SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[], $4::uuid[], $5::timestamptz[])
-      ON CONFLICT (phone_normalized) 
-      DO UPDATE SET 
-        name = EXCLUDED.name,
-        phone_raw = EXCLUDED.phone_raw,
-        updated_at = NOW()
-      WHERE contacts.created_by = EXCLUDED.created_by -- Only update if owned by same user
-        AND EXCLUDED.created_at > contacts.created_at -- Only update if incoming is newer
-      RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at, (xmax = 0) AS is_insert;
-    `;
-
-    // Create an array of user IDs matching the length of contacts
-    const userIds = new Array(names.length).fill(req.user.id);
-
-    const result = await pool.query(query, [
-      names,
-      phonesRaw,
-      phonesNormalized,
-      userIds,
-      createdAts
-    ]);
-
-    // 3. Process results
-    const results = result.rows.map(row => ({
-      // Note: We lose the original index mapping with this approach unless we include it in the query.
-      // But for sync, the client usually just needs to know it succeeded.
-      // If strict index mapping is required, we'd need to pass the index through.
-      action: row.is_insert ? 'created' : 'updated',
-      contact: {
-        id: row.id,
-        name: row.name,
-        phone_raw: row.phone_raw,
-        phone_normalized: row.phone_normalized,
-        created_by: row.created_by,
-        created_at: row.created_at,
-        updated_at: row.updated_at
-      }
-    }));
-
-    // Calculate summary
-    const createdCount = results.filter(r => r.action === 'created').length;
-    const updatedCount = results.filter(r => r.action === 'updated').length;
-    // "Existing" in this context means "Ignored due to WHERE clause" (older data or different owner)
-    // The RETURNING clause only returns rows that were actually inserted or updated.
-    // So (Total Input - Errors - Returned Rows) = Ignored/Existing
-    const ignoredCount = names.length - results.length;
-
-    res.status(200).json({
-      results, // Only contains actually changed/inserted contacts
-      errors,
-      summary: {
-        total: contacts.length,
-        created: createdCount,
-        updated: updatedCount,
-        existing: ignoredCount,
-        errors: errors.length
-      }
-    });
-
-  } catch (error) {
-    console.error('Batch create contacts error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  if (!Array.isArray(contacts) || contacts.length === 0) {
+    return res.status(400).json({ error: 'Contacts array is required and must not be empty' });
   }
-});
+
+  if (contacts.length > 1000) {
+    return res.status(400).json({ error: 'Maximum 1000 contacts per batch request' });
+  }
+
+  // 1. Prepare valid contacts
+  const validContacts = [];
+  const errors = [];
+
+  for (let i = 0; i < contacts.length; i++) {
+    const contact = contacts[i];
+    if (!contact.name || !contact.phone_raw) {
+      errors.push({ index: i, error: 'Name and phone_raw are required', contact });
+      continue;
+    }
+    try {
+      const normalized = normalizePhoneNumber(contact.phone_raw);
+      validContacts.push({
+        ...contact,
+        phone_normalized: normalized,
+        created_at: contact.created_at || new Date().toISOString()
+      });
+    } catch (e) {
+      errors.push({ index: i, error: e.message, contact });
+    }
+  }
+
+  if (validContacts.length === 0) {
+    return res.status(200).json({
+      results: [],
+      errors,
+      summary: { total: contacts.length, created: 0, updated: 0, existing: 0, errors: errors.length }
+    });
+  }
+
+  // 2. Execute Batch Upsert
+  const rows = await contactsRepository.batchUpsert(validContacts, req.user.id, { restoreDeleted: !!force_restore });
+
+  // 3. Process results
+  const results = rows.map(row => ({
+    action: row.is_insert ? 'created' : 'updated',
+    contact: {
+      id: row.id,
+      name: row.name,
+      phone_raw: row.phone_raw,
+      phone_normalized: row.phone_normalized,
+      created_by: row.created_by,
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    }
+  }));
+
+  // Calculate summary
+  const createdCount = results.filter(r => r.action === 'created').length;
+  const updatedCount = results.filter(r => r.action === 'updated').length;
+  const ignoredCount = validContacts.length - results.length;
+
+  res.status(200).json({
+    results,
+    errors,
+    summary: {
+      total: contacts.length,
+      created: createdCount,
+      updated: updatedCount,
+      existing: ignoredCount,
+      errors: errors.length
+    }
+  });
+}));
 
 // PUT /contacts/:id
-router.put('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, phone_raw, created_by } = req.body;
+router.put('/:id', validate(updateContactSchema), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { name, phone_raw, created_by } = req.body;
 
-    if (!name || !phone_raw) {
-      return res.status(400).json({ error: 'Name and phone_raw are required' });
-    }
+  const ownershipCheck = await db('contacts').select('created_by').where({ id }).first();
 
-    // Check ownership
-    const ownershipCheck = await pool.query(
-      'SELECT created_by FROM contacts WHERE id = $1',
-      [id]
-    );
-
-    if (ownershipCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Contact not found' });
-    }
-
-    // Check ownership
-    if (!checkOwnership({ created_by: ownershipCheck.rows[0].created_by }, req.user)) {
-      return res.status(403).json({ error: 'You can only update your own contacts' });
-    }
-
-    // Normalize phone
-    const normalizedPhone = normalizePhoneNumber(phone_raw);
-
-    let query = 'UPDATE contacts SET name = $1, phone_raw = $2, phone_normalized = $3, updated_at = NOW()';
-    let params = [name, phone_raw, normalizedPhone];
-    let paramIndex = 4;
-
-    // Allow admin to change creator
-    if (created_by && req.user.is_admin) {
-      query += `, created_by = $${paramIndex}`;
-      params.push(created_by);
-      paramIndex++;
-    }
-
-    query += ` WHERE id = $${paramIndex} RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at`;
-    params.push(id);
-
-    const result = await pool.query(query, params);
-
-    res.json({ contact: result.rows[0] });
-  } catch (error) {
-    console.error('Update contact error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  if (!ownershipCheck) {
+    return res.status(404).json({ error: 'Contact not found' });
   }
-});
+
+  if (!checkOwnership({ created_by: ownershipCheck.created_by }, req.user)) {
+    return res.status(403).json({ error: 'You can only update your own contacts' });
+  }
+
+  const normalizedPhone = normalizePhoneNumber(phone_raw);
+
+  const updates = {
+    name,
+    phone_raw,
+    phone_normalized: normalizedPhone,
+    updated_at: db.fn.now()
+  };
+
+  if (created_by && req.user.is_admin) {
+    updates.created_by = created_by;
+  }
+
+  const [updatedContact] = await db('contacts')
+    .where({ id })
+    .update(updates)
+    .returning(['id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at']);
+
+  res.json({ contact: updatedContact });
+}));
 
 // DELETE /contacts/:id
-router.delete('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
+router.delete('/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-    // Check ownership
-    const ownershipCheck = await pool.query(
-      'SELECT created_by FROM contacts WHERE id = $1',
-      [id]
-    );
+  const contact = await contactsRepository.findById(id);
 
-    if (ownershipCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Contact not found' });
-    }
-
-    // Check ownership
-    if (!checkOwnership({ created_by: ownershipCheck.rows[0].created_by }, req.user)) {
-      return res.status(403).json({ error: 'You can only delete your own contacts' });
-    }
-
-    const result = await pool.query('DELETE FROM contacts WHERE id = $1 RETURNING id', [id]);
-
-    res.json({ message: 'Contact deleted successfully' });
-  } catch (error) {
-    console.error('Delete contact error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  if (!contact) {
+    return res.status(404).json({ error: 'Contact not found' });
   }
-});
+
+  if (!checkOwnership(contact, req.user)) {
+    return res.status(403).json({ error: 'You can only delete your own contacts' });
+  }
+
+  await contactsRepository.softDelete(id);
+
+  res.json({ message: 'Contact deleted successfully' });
+}));
 
 // GET /contacts/export - Export all contacts as CSV
-router.get('/export', async (req, res) => {
-  try {
-    // Fetch all contacts with user information
-    const result = await pool.query(`
-      SELECT c.name, c.phone_raw, u.name as creator_name, c.created_at
-      FROM contacts c
-      LEFT JOIN users u ON c.created_by = u.id
-      ORDER BY c.created_at DESC
-    `);
+router.get('/export', asyncHandler(async (req, res) => {
+  // Fetch all contacts with user information
+  const contacts = await db('contacts as c')
+    .leftJoin('users as u', 'c.created_by', 'u.id')
+    .select('c.name', 'c.phone_raw', 'u.name as creator_name', 'c.created_at')
+    .orderBy('c.created_at', 'desc');
 
-    const fields = [
-      { label: 'Name', value: 'name' },
-      { label: 'Phone', value: 'phone_raw' },
-      { label: 'Created By', value: 'creator_name' },
-      { label: 'Created At', value: (row) => new Date(row.created_at).toLocaleDateString() }
-    ];
+  const fields = [
+    { label: 'Name', value: 'name' },
+    { label: 'Phone', value: 'phone_raw' },
+    { label: 'Created By', value: 'creator_name' },
+    { label: 'Created At', value: (row) => new Date(row.created_at).toLocaleDateString() }
+  ];
 
-    const json2csvParser = new Parser({ fields });
-    const csv = json2csvParser.parse(result.rows);
+  const json2csvParser = new Parser({ fields });
+  const csv = json2csvParser.parse(contacts);
 
-    // Set headers for CSV download
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="contacts.csv"');
-    res.send(csv);
-  } catch (error) {
-    console.error('Export contacts error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="contacts.csv"');
+  res.send(csv);
+}));
 
 module.exports = router;

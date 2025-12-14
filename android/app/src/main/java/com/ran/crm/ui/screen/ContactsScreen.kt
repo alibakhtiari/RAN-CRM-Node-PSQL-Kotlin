@@ -15,6 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.ran.crm.R
 import com.ran.crm.data.local.entity.Contact
@@ -29,7 +32,8 @@ fun ContactsScreen(
         onCallLogsClick: () -> Unit,
         onSettingsClick: () -> Unit,
         onAddContactClick: () -> Unit,
-        contactRepository: ContactRepository
+        contactRepository: ContactRepository,
+        isUserAdmin: Boolean
 ) {
     var contacts by remember { mutableStateOf<List<Contact>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
@@ -61,8 +65,10 @@ fun ContactsScreen(
                 TopAppBar(
                         title = { Text(stringResource(R.string.contacts)) },
                         actions = {
-                            TextButton(onClick = onCallLogsClick) {
-                                Text(stringResource(R.string.call_logs))
+                            if (isUserAdmin) {
+                                TextButton(onClick = onCallLogsClick) {
+                                    Text(stringResource(R.string.call_logs))
+                                }
                             }
                             IconButton(onClick = onSettingsClick) {
                                 Icon(
@@ -84,8 +90,11 @@ fun ContactsScreen(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     label = { Text(stringResource(R.string.search)) },
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    singleLine = true
+                    modifier =
+                            Modifier.fillMaxWidth()
+                                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 2.dp),
+                    singleLine = true,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
             )
 
             if (isLoading) {
@@ -178,17 +187,26 @@ fun ContactItem(
                 verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = contact.name, style = MaterialTheme.typography.titleMedium)
+                val nameText = buildAnnotatedString {
+                    append(contact.name)
                     if (!contact.creatorName.isNullOrBlank()) {
-                        Text(
-                                text = " (${contact.creatorName})",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 4.dp)
-                        )
+                        withStyle(
+                                style =
+                                        SpanStyle(
+                                                fontSize =
+                                                        MaterialTheme.typography.bodySmall.fontSize,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                        ) { append(" (${contact.creatorName})") }
                     }
                 }
+
+                Text(
+                        text = nameText,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 3,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
                 Text(
                         text = contact.phoneRaw,
                         style = MaterialTheme.typography.bodyMedium,

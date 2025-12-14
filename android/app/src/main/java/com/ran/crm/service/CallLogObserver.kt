@@ -44,13 +44,21 @@ class CallLogObserver(
         }
     }
 
+    private var isRegistered = false
+
     fun register() {
-        context.contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, this)
-        SyncLogger.log("CallLogObserver: Registered")
+        if (!isRegistered) {
+            context.contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, this)
+            isRegistered = true
+            SyncLogger.log("CallLogObserver: Registered")
+        }
     }
 
     fun unregister() {
-        context.contentResolver.unregisterContentObserver(this)
-        SyncLogger.log("CallLogObserver: Unregistered")
+        if (isRegistered) {
+            context.contentResolver.unregisterContentObserver(this)
+            isRegistered = false
+            SyncLogger.log("CallLogObserver: Unregistered")
+        }
     }
 }

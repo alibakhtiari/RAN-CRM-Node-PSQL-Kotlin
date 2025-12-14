@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <!-- Exclude specific shared preferences that contain sensitive information. -->
-    <exclude domain="sharedprefs" path="./my_sensitive_prefs.xml"/>
+    <exclude domain="sharedpref" path="my_sensitive_prefs.xml"/>
 
     <!-- Exclude specific databases. -->
-    <exclude domain="database" path="./my_sensitive_database.db"/>
+    <exclude domain="database" path="my_sensitive_database.db"/>
 
     <!-- Exclude files in a specific directory. -->
     <exclude domain="file" path="./my_sensitive_files/"/>

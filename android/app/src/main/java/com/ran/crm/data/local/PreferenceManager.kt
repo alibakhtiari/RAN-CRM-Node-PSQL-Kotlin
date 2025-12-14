@@ -17,7 +17,12 @@ class PreferenceManager(context: Context) {
         private const val KEY_APP_THEME = "app_theme"
         private const val KEY_FONT_SCALE = "font_scale"
         private const val KEY_SYNC_INTERVAL_MINUTES = "sync_interval_minutes"
+        private const val KEY_IS_ADMIN = "is_admin"
     }
+
+    var isAdmin: Boolean
+        get() = prefs.getBoolean(KEY_IS_ADMIN, false)
+        set(value) = prefs.edit().putBoolean(KEY_IS_ADMIN, value).apply()
 
     var userId: String?
         get() = prefs.getString(KEY_USER_ID, null)

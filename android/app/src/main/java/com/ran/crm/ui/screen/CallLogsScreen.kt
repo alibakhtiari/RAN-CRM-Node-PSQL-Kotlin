@@ -1,15 +1,14 @@
 package com.ran.crm.ui.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,18 +18,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ran.crm.R
-import com.ran.crm.data.local.entity.CallLog  
+import com.ran.crm.data.local.entity.CallLog
 import com.ran.crm.data.repository.CallLogRepository
-import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CallLogsScreen(
-    onBackClick: () -> Unit,
-    callLogRepository: CallLogRepository
-) {
+fun CallLogsScreen(onBackClick: () -> Unit, callLogRepository: CallLogRepository) {
     var callLogs by remember { mutableStateOf<List<CallLog>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -42,49 +38,35 @@ fun CallLogsScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.call_logs)) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
-            )
-        }
+            topBar = {
+                TopAppBar(
+                        title = { Text(stringResource(R.string.call_logs)) },
+                        navigationIcon = {
+                            IconButton(onClick = onBackClick) {
+                                Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back"
+                                )
+                            }
+                        }
+                )
+            }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else if (callLogs.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = stringResource(R.string.no_data),
-                        style = MaterialTheme.typography.bodyLarge
+                            text = stringResource(R.string.no_data),
+                            style = MaterialTheme.typography.bodyLarge
                     )
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(callLogs.size) { index ->
-                        GlobalCallLogItem(callLog = callLogs[index])
-                    }
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(callLogs.size) { index -> GlobalCallLogItem(callLog = callLogs[index]) }
                 }
             }
         }
@@ -93,42 +75,38 @@ fun CallLogsScreen(
 
 @Composable
 fun GlobalCallLogItem(callLog: CallLog) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-    ) {
+    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
         ) {
             // Call direction icon (replacing contact photo)
             Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        color = when (callLog.direction) {
-                            "incoming" -> Color(0xFF4CAF50) // Green
-                            "outgoing" -> Color(0xFF2196F3) // Blue
-                            "missed" -> Color(0xFFF44336)   // Red
-                            else -> Color.Gray
-                        },
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
+                    modifier =
+                            Modifier.size(48.dp)
+                                    .background(
+                                            color =
+                                                    when (callLog.direction) {
+                                                        "incoming" -> Color(0xFF4CAF50) // Green
+                                                        "outgoing" -> Color(0xFF2196F3) // Blue
+                                                        "missed" -> Color(0xFFF44336) // Red
+                                                        else -> Color.Gray
+                                                    },
+                                            shape = CircleShape
+                                    ),
+                    contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = when (callLog.direction) {
-                        "incoming" -> Icons.Default.Call
-                        "outgoing" -> Icons.Default.Phone
-                        "missed" -> Icons.Default.Close
-                        else -> Icons.Default.Phone
-                    },
-                    contentDescription = callLog.direction,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
+                        imageVector =
+                                when (callLog.direction) {
+                                    "incoming" -> Icons.Default.Call
+                                    "outgoing" -> Icons.Default.Phone
+                                    "missed" -> Icons.Default.Close
+                                    else -> Icons.Default.Phone
+                                },
+                        contentDescription = callLog.direction,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                 )
             }
 
@@ -136,32 +114,40 @@ fun GlobalCallLogItem(callLog: CallLog) {
 
             Column(modifier = Modifier.weight(1f)) {
                 // Contact name or phone number
+                // Logic: If we have a contact name, show it. If not, show the phone number.
+                // If we also don't have a phone number, show "Unknown".
+                val displayText = if (!callLog.contactName.isNullOrBlank() && callLog.contactName != "Unknown") {
+                    callLog.contactName
+                } else {
+                    callLog.phoneNumber ?: "Unknown"
+                }
+
                 Text(
-                    text = callLog.contactName ?: callLog.phoneNumber ?: "Unknown",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
+                        text = displayText,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
                 )
-                
-                // User who uploaded this log
+
+                // User who uploaded this log (restored as per request)
                 Text(
-                    text = "${callLog.userName ?: "Unknown"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                        text = "${callLog.userName ?: "Unknown"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
                 )
-                
+
                 // Timestamp
                 Text(
-                    text = formatTimestamp(callLog.timestamp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                        text = formatTimestamp(callLog.timestamp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
                 )
             }
 
             // Duration
             Text(
-                text = formatDuration(callLog.durationSeconds),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
+                    text = formatDuration(callLog.durationSeconds),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
             )
         }
     }
