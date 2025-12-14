@@ -138,7 +138,7 @@ export default function ImportContactsModal({ onClose, onImport }: ImportContact
                                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                                     <button
                                         type="button"
-                                        className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                        className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                         onClick={onClose}
                                     >
                                         <span className="sr-only">Close</span>
@@ -147,7 +147,7 @@ export default function ImportContactsModal({ onClose, onImport }: ImportContact
                                 </div>
 
                                 <div className="sm:flex sm:items-start">
-                                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                                    <div className="mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
                                         <DocumentArrowUpIcon className="h-6 w-6 text-green-600" aria-hidden="true" />
                                     </div>
                                     <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
@@ -195,7 +195,7 @@ export default function ImportContactsModal({ onClose, onImport }: ImportContact
                                                                 <div className="mt-4 flex text-sm leading-6 text-gray-600 justify-center">
                                                                     <label
                                                                         htmlFor="file-upload"
-                                                                        className="relative cursor-pointer rounded-md bg-white font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500"
+                                                                        className="relative cursor-pointer rounded-md bg-white font-semibold text-blue-600 focus-within:outline-hidden focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500"
                                                                     >
                                                                         <span>Upload a file</span>
                                                                         <input
@@ -221,7 +221,7 @@ export default function ImportContactsModal({ onClose, onImport }: ImportContact
                                                                 id="paste-csv"
                                                                 name="paste-csv"
                                                                 rows={10}
-                                                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6 font-mono"
+                                                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6 font-mono"
                                                                 placeholder={`name,phone\nJohn Doe,+1234567890`}
                                                                 value={pasteInput}
                                                                 onChange={(e) => setPasteInput(e.target.value)}
@@ -241,7 +241,7 @@ export default function ImportContactsModal({ onClose, onImport }: ImportContact
                                                     {importResult.errors?.length > 0 && (
                                                         <div className="mt-4">
                                                             <h5 className="text-xs font-bold text-red-800">Failed Items:</h5>
-                                                            <div className="mt-1 max-h-32 overflow-y-auto text-xs text-red-700 bg-red-50 p-2 rounded">
+                                                            <div className="mt-1 max-h-32 overflow-y-auto text-xs text-red-700 bg-red-50 p-2 rounded-sm">
                                                                 {importResult.errors.map((e: any, i: number) => (
                                                                     <div key={i}>Index {e.index}: {e.error}</div>
                                                                 ))}
@@ -259,7 +259,7 @@ export default function ImportContactsModal({ onClose, onImport }: ImportContact
                                         <button
                                             type="button"
                                             disabled={loading || (inputMode === 'file' && !file) || (inputMode === 'paste' && !pasteInput)}
-                                            className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
+                                            className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
                                             onClick={handleImport}
                                         >
                                             {loading ? 'Importing...' : 'Import'}
@@ -267,7 +267,7 @@ export default function ImportContactsModal({ onClose, onImport }: ImportContact
                                     ) : (
                                         <button
                                             type="button"
-                                            className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto"
+                                            className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 sm:ml-3 sm:w-auto"
                                             onClick={onClose}
                                         >
                                             Done
@@ -275,7 +275,7 @@ export default function ImportContactsModal({ onClose, onImport }: ImportContact
                                     )}
                                     <button
                                         type="button"
-                                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
                                         onClick={onClose}
                                     >
                                         Cancel

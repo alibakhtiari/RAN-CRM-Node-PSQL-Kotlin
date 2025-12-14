@@ -83,7 +83,7 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess }: Regist
                                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                                     <button
                                         type="button"
-                                        className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                        className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                         onClick={onClose}
                                     >
                                         <span className="sr-only">Close</span>
@@ -108,7 +108,7 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess }: Regist
                                                     <label className="block text-sm font-medium text-gray-700">Full Name</label>
                                                     <input
                                                         type="text"
-                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                         {...register('name')}
                                                     />
                                                     {errors.name && <p className="text-red-500 text-xs">{errors.name.message}</p>}
@@ -118,7 +118,7 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess }: Regist
                                                     <label className="block text-sm font-medium text-gray-700">Username / Phone</label>
                                                     <input
                                                         type="text"
-                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                         {...register('username')}
                                                     />
                                                     {errors.username && <p className="text-red-500 text-xs">{errors.username.message}</p>}
@@ -128,14 +128,14 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess }: Regist
                                                     <label className="block text-sm font-medium text-gray-700">Password</label>
                                                     <input
                                                         type="password"
-                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                         {...register('password')}
                                                     />
                                                     {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
                                                 </div>
 
                                                 <div className="flex items-center justify-between">
-                                                    <span className="flex-grow flex flex-col">
+                                                    <span className="grow flex flex-col">
                                                         <span className="text-sm font-medium text-gray-900">Admin Privileges</span>
                                                         <span className="text-sm text-gray-500">Grant full access to the system</span>
                                                     </span>
@@ -143,7 +143,7 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess }: Regist
                                                         checked={isAdmin}
                                                         onChange={(val) => setValue('is_admin', val)}
                                                         className={`${isAdmin ? 'bg-blue-600' : 'bg-gray-200'
-                                                            } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+                                                            } relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
                                                     >
                                                         <span
                                                             aria-hidden="true"
@@ -157,13 +157,13 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess }: Regist
                                                     <button
                                                         type="submit"
                                                         disabled={isSubmitting}
-                                                        className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
+                                                        className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
                                                     >
                                                         {isSubmitting ? 'Registering...' : 'Register'}
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                                                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
                                                         onClick={onClose}
                                                     >
                                                         Cancel

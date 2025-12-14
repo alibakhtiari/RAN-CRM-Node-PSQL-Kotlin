@@ -99,7 +99,7 @@ export default function CallLogs() {
                     />
                     <button
                         onClick={() => refetch()}
-                        className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                        className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                     >
                         <ArrowPathIcon className="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" />
                         Refresh
@@ -107,7 +107,7 @@ export default function CallLogs() {
                 </div>
             </div>
 
-            <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+            <div className="bg-white shadow-xs ring-1 ring-gray-900/5 sm:rounded-xl">
                 {isLoading ? (
                     <div className="p-8 text-center text-gray-500">Loading call logs...</div>
                 ) : isError ? (
@@ -194,7 +194,7 @@ export default function CallLogs() {
                                     </p>
                                 </div>
                                 <div>
-                                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-xs" aria-label="Pagination">
                                         <button
                                             onClick={() => setPage(p => Math.max(1, p - 1))}
                                             disabled={page === 1}

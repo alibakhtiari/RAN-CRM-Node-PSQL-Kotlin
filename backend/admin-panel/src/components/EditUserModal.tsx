@@ -110,7 +110,7 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                                     <button
                                         type="button"
-                                        className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                        className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                         onClick={onClose}
                                     >
                                         <span className="sr-only">Close</span>
@@ -132,7 +132,7 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                                                         <input
                                                             type="text"
                                                             {...register('name')}
-                                                            className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                                                            className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
                                                         />
                                                         {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
                                                     </div>
@@ -147,7 +147,7 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                                                             type="password"
                                                             {...register('password')}
                                                             placeholder="Leave blank to keep current password"
-                                                            className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                                                            className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
                                                         />
                                                         {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
                                                     </div>
@@ -159,7 +159,7 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                                                             id="is_admin"
                                                             type="checkbox"
                                                             {...register('is_admin')}
-                                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                                                            className="h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-600"
                                                         />
                                                     </div>
                                                     <div className="text-sm leading-6">
@@ -173,13 +173,13 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                                                     <button
                                                         type="submit"
                                                         disabled={mutation.isPending}
-                                                        className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
+                                                        className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
                                                     >
                                                         {mutation.isPending ? 'Saving...' : 'Save Changes'}
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                                                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
                                                         onClick={onClose}
                                                     >
                                                         Cancel

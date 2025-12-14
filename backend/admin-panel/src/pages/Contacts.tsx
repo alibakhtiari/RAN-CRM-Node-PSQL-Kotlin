@@ -133,21 +133,21 @@ export default function Contacts() {
                 <div className="mt-4 flex gap-2 md:mt-0">
                     <button
                         onClick={handleExport}
-                        className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                        className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                     >
                         <DocumentArrowDownIcon className="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" />
                         Export CSV
                     </button>
                     <button
                         onClick={() => setIsImportModalOpen(true)}
-                        className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                        className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                     >
                         <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" />
                         Import CSV
                     </button>
                     <button
                         onClick={handleCreate}
-                        className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+                        className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-700"
                     >
                         Add Contact
                     </button>
@@ -171,7 +171,7 @@ export default function Contacts() {
             </div>
 
             {/* Table */}
-            <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+            <div className="bg-white shadow-xs ring-1 ring-gray-900/5 sm:rounded-xl">
                 {isLoading ? (
                     <div className="p-8 text-center text-gray-500">Loading...</div>
                 ) : (
@@ -236,7 +236,7 @@ export default function Contacts() {
                                     </p>
                                 </div>
                                 <div>
-                                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-xs" aria-label="Pagination">
                                         <button
                                             onClick={() => handlePageChange(page - 1)}
                                             disabled={page === 1}

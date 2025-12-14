@@ -96,7 +96,7 @@ export default function ContactModal({ isOpen, onClose, onSuccess, contact, user
                                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                                     <button
                                         type="button"
-                                        className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                        className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                         onClick={onClose}
                                     >
                                         <span className="sr-only">Close</span>
@@ -115,7 +115,7 @@ export default function ContactModal({ isOpen, onClose, onSuccess, contact, user
                                                     <label className="block text-sm font-medium text-gray-700">Name</label>
                                                     <input
                                                         type="text"
-                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                         {...register('name')}
                                                     />
                                                     {errors.name && <p className="text-red-500 text-xs">{errors.name.message}</p>}
@@ -125,7 +125,7 @@ export default function ContactModal({ isOpen, onClose, onSuccess, contact, user
                                                     <label className="block text-sm font-medium text-gray-700">Phone</label>
                                                     <input
                                                         type="text"
-                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                         {...register('phone_raw')}
                                                     />
                                                     {errors.phone_raw && <p className="text-red-500 text-xs">{errors.phone_raw.message}</p>}
@@ -135,7 +135,7 @@ export default function ContactModal({ isOpen, onClose, onSuccess, contact, user
                                                     <div>
                                                         <label className="block text-sm font-medium text-gray-700">Assign To</label>
                                                         <select
-                                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                             {...register('created_by')}
                                                         >
                                                             {users.map(u => (
@@ -149,13 +149,13 @@ export default function ContactModal({ isOpen, onClose, onSuccess, contact, user
                                                     <button
                                                         type="submit"
                                                         disabled={isSubmitting}
-                                                        className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
+                                                        className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
                                                     >
                                                         {isSubmitting ? 'Saving...' : 'Save'}
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                                                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
                                                         onClick={onClose}
                                                     >
                                                         Cancel

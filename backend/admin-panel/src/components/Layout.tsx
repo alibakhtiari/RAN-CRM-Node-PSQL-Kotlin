@@ -29,7 +29,7 @@ export default function Layout() {
                         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                             <div className="flex h-16 items-center justify-between">
                                 <div className="flex items-center">
-                                    <div className="flex-shrink-0">
+                                    <div className="shrink-0">
                                         <span className="text-white font-bold text-xl">RAN CRM</span>
                                     </div>
                                     <div className="hidden md:block">
@@ -60,7 +60,7 @@ export default function Layout() {
                                         </span>
                                         <Menu as="div" className="relative ml-3">
                                             <div>
-                                                <Menu.Button className="relative flex max-w-xs items-center rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+                                                <Menu.Button className="relative flex max-w-xs items-center rounded-full bg-gray-800 text-sm focus:outline-hidden focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
                                                     <span className="absolute -inset-1.5" />
                                                     <span className="sr-only">Open user menu</span>
                                                     <UserCircleIcon className="h-8 w-8 text-gray-400" aria-hidden="true" />
@@ -75,7 +75,7 @@ export default function Layout() {
                                                 leaveFrom="transform opacity-100 scale-100"
                                                 leaveTo="transform opacity-0 scale-95"
                                             >
-                                                <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                                <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-hidden">
                                                     <Menu.Item>
                                                         {({ active }) => (
                                                             <button
@@ -96,7 +96,7 @@ export default function Layout() {
                                 </div>
                                 <div className="-mr-2 flex md:hidden">
                                     {/* Mobile menu button */}
-                                    <Disclosure.Button className="relative inline-flex items-center justify-center rounded-md bg-gray-800 p-2 text-gray-400 hover:bg-gray-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+                                    <Disclosure.Button className="relative inline-flex items-center justify-center rounded-md bg-gray-800 p-2 text-gray-400 hover:bg-gray-700 hover:text-white focus:outline-hidden focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
                                         <span className="absolute -inset-0.5" />
                                         <span className="sr-only">Open main menu</span>
                                         {open ? (
@@ -134,7 +134,7 @@ export default function Layout() {
                                     </div>
                                     <button
                                         onClick={handleLogout}
-                                        className="ml-auto flex-shrink-0 bg-red-600 px-3 py-1 rounded text-white text-sm"
+                                        className="ml-auto shrink-0 bg-red-600 px-3 py-1 rounded-sm text-white text-sm"
                                     >
                                         Log out
                                     </button>
