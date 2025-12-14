@@ -61,6 +61,51 @@ router.post('/', async (req, res) => {
   }
 });
 
+// PATCH /users/:id
+router.patch('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, is_admin, password } = req.body;
+
+    const updates = [];
+    const values = [];
+    let queryIndex = 1;
+
+    if (name) {
+      updates.push(`name = $${queryIndex++}`);
+      values.push(name);
+    }
+    if (is_admin !== undefined) {
+      updates.push(`is_admin = $${queryIndex++}`);
+      values.push(is_admin);
+    }
+    if (password) {
+      const saltRounds = 12;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+      updates.push(`password_hash = $${queryIndex++}`);
+      values.push(passwordHash);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    values.push(id);
+    const query = `UPDATE users SET ${updates.join(', ')} WHERE id = $${queryIndex} RETURNING id, username, name, is_admin, created_at`;
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user: result.rows[0] });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // DELETE /users/:id
 router.delete('/:id', async (req, res) => {
   try {
