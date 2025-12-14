@@ -20,8 +20,8 @@ const checkOwnership = (contact, user) => {
   return contact.created_by === user.id || user.is_admin;
 };
 
-// GET /contacts
-router.get('/', asyncHandler(async (req, res) => {
+// Shared handler for getting contacts
+const getContacts = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPaginationParams(req);
   const { updated_since, q } = req.query;
 
@@ -30,24 +30,31 @@ router.get('/', asyncHandler(async (req, res) => {
 
   if (search) {
     // Set similarity threshold if searching using raw query before the main query
-    await db.raw('SET LOCAL pg_trgm.similarity_threshold = 0.3');
+    try {
+      await db.raw('SET LOCAL pg_trgm.similarity_threshold = 0.3');
+    } catch (e) {
+      // Ignore if pg_trgm is not available or fails, allowing partial search to try ILIKE
+      console.warn('pg_trgm setup failed, proceeding without similarity threshold:', e.message);
+    }
   }
 
   const total = await contactsRepository.count({ updatedSince, search });
   const contacts = await contactsRepository.findAll({ limit, offset, updatedSince, search });
 
   res.json(getPaginationResult(contacts, total, page, limit));
-}));
+});
+
+// GET /contacts
+router.get('/', getContacts);
 
 // GET /contacts/search - Legacy/Alias
-router.get('/search', asyncHandler(async (req, res) => {
+router.get('/search', (req, res, next) => {
   const { q } = req.query;
   if (!q || q.trim().length < 2) {
     return res.status(400).json({ error: 'Search query must be at least 2 characters' });
   }
-  req.query.q = q;
-  return router.handle(req, res);
-}));
+  return getContacts(req, res, next);
+});
 
 // POST /contacts
 router.post('/', validate(createContactSchema), asyncHandler(async (req, res) => {
