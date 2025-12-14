@@ -10,7 +10,7 @@ const registerSchema = z.object({
     name: z.string().min(1, 'Name is required'),
     username: z.string().min(1, 'Username is required'), // phone
     password: z.string().min(6, 'Password must be at least 6 characters'),
-    is_admin: z.boolean().default(false),
+    is_admin: z.boolean(),
 });
 
 type RegisterInputs = z.infer<typeof registerSchema>;
@@ -105,9 +105,11 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess }: Regist
 
                                             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                                                    <label htmlFor="register-name" className="block text-sm font-medium text-gray-700">Full Name</label>
                                                     <input
+                                                        id="register-name"
                                                         type="text"
+                                                        autoComplete="name"
                                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                         {...register('name')}
                                                     />
@@ -115,9 +117,11 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess }: Regist
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700">Username / Phone</label>
+                                                    <label htmlFor="register-username" className="block text-sm font-medium text-gray-700">Username / Phone</label>
                                                     <input
+                                                        id="register-username"
                                                         type="text"
+                                                        autoComplete="username"
                                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                         {...register('username')}
                                                     />
@@ -125,9 +129,11 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess }: Regist
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700">Password</label>
+                                                    <label htmlFor="register-password" className="block text-sm font-medium text-gray-700">Password</label>
                                                     <input
+                                                        id="register-password"
                                                         type="password"
+                                                        autoComplete="new-password"
                                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                         {...register('password')}
                                                     />

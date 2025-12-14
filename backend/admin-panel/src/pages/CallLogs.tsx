@@ -92,6 +92,8 @@ export default function CallLogs() {
                         type="text"
                         name="call-log-filter"
                         id="call-log-filter"
+                        aria-label="Filter call logs"
+                        autoComplete="off"
                         placeholder="Filter by name or phone..."
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}

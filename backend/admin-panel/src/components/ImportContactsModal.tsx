@@ -217,6 +217,7 @@ export default function ImportContactsModal({ onClose, onImport }: ImportContact
                                                     ) : (
                                                         <>
                                                             <p className="mb-2">Paste CSV content (header row required):</p>
+                                                            <label htmlFor="paste-csv" className="sr-only">Paste CSV content</label>
                                                             <textarea
                                                                 id="paste-csv"
                                                                 name="paste-csv"
