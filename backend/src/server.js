@@ -7,7 +7,6 @@ const server = app.listen(PORT, () => {
   console.log(`Health check: http://localhost:${PORT}/health`);
 });
 
-const pool = require('./config/database');
 const knex = require('./config/knex');
 
 const gracefulShutdown = async () => {
@@ -15,8 +14,6 @@ const gracefulShutdown = async () => {
   server.close(async () => {
     console.log('Closed out remaining connections');
     try {
-      await pool.end();
-      console.log('PostgreSQL pool closed');
       await knex.destroy();
       console.log('Knex connection destroyed');
     } catch (err) {

@@ -18,7 +18,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../public/admin',
+    outDir: '../public/admin', // Builds directly into backend's public folder
     emptyOutDir: true
   }
 })

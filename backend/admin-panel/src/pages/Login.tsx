@@ -34,7 +34,7 @@ export default function Login() {
         setIsLoading(true);
         try {
             const response = await api.post('/auth/login', {
-                phone: data.username, // Assuming backend expects 'phone'
+                username: data.username,
                 password: data.password,
             });
 

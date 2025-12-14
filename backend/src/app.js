@@ -12,10 +12,12 @@ const errorHandler = require('./middleware/errorHandler');
 const AppError = require('./utils/AppError');
 
 const helmet = require('helmet');
+const morgan = require('morgan');
 
 const app = express();
 
 // Middleware
+app.use(morgan('combined'));
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
