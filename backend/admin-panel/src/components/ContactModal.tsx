@@ -112,9 +112,11 @@ export default function ContactModal({ isOpen, onClose, onSuccess, contact, user
                                         <div className="mt-2">
                                             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700">Name</label>
+                                                    <label htmlFor="contact-name" className="block text-sm font-medium text-gray-700">Name</label>
                                                     <input
+                                                        id="contact-name"
                                                         type="text"
+                                                        autoComplete="name"
                                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                         {...register('name')}
                                                     />
@@ -122,9 +124,11 @@ export default function ContactModal({ isOpen, onClose, onSuccess, contact, user
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700">Phone</label>
+                                                    <label htmlFor="contact-phone" className="block text-sm font-medium text-gray-700">Phone</label>
                                                     <input
+                                                        id="contact-phone"
                                                         type="text"
+                                                        autoComplete="tel"
                                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                         {...register('phone_raw')}
                                                     />
@@ -133,8 +137,10 @@ export default function ContactModal({ isOpen, onClose, onSuccess, contact, user
 
                                                 {currentUser?.is_admin && users && (
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700">Assign To</label>
+                                                        <label htmlFor="contact-assign" className="block text-sm font-medium text-gray-700">Assign To</label>
                                                         <select
+                                                            id="contact-assign"
+                                                            autoComplete="off"
                                                             className="mt-1 block w-full rounded-md border-gray-300 shadow-xs focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                                                             {...register('created_by')}
                                                         >
