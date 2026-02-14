@@ -7,8 +7,7 @@ import com.ran.crm.data.remote.ApiClient
 import com.ran.crm.data.remote.model.CallData
 import com.ran.crm.data.remote.model.CallUploadRequest
 import com.ran.crm.data.remote.safeApiCall
-import java.text.SimpleDateFormat
-import java.util.*
+import com.ran.crm.utils.DateUtils
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -190,36 +189,30 @@ class CallLogRepository(
      * with the server log (UUID).
      */
     private suspend fun mergeCallLogs(serverLogs: List<CallLog>) {
-        // Get all local logs for comparison (inefficient for large datasets, but ok for now)
-        // Ideally we'd query by specific fields, but Room doesn't support complex "OR" lists
-        // easily.
         val localLogs = callLogDao.getAllCallLogs().first()
 
+        // Build a lookup map keyed by (phoneNumber, timestamp) for O(1) matching
+        val localByKey = HashMap<String, CallLog>(localLogs.size)
+        for (local in localLogs) {
+            val key = "${local.phoneNumber}|${local.timestamp}"
+            localByKey[key] = local
+        }
+
         for (serverLog in serverLogs) {
-            // Find matching local log
-            // Match criteria: Same Phone Number AND Same Timestamp
-            val match =
-                    localLogs.find { local ->
-                        local.phoneNumber == serverLog.phoneNumber &&
-                                local.timestamp == serverLog.timestamp
-                    }
+            val key = "${serverLog.phoneNumber}|${serverLog.timestamp}"
+            val match = localByKey[key]
 
             if (match != null) {
-                // It's a match!
                 if (match.id != serverLog.id) {
-                    // Local ID is different (likely a temp ID from CallLogReader)
-                    // Delete local duplicate and insert server version
                     com.ran.crm.utils.SyncLogger.log(
                             "CallLogRepo: Merging duplicate log. Local: ${match.id} -> Server: ${serverLog.id}"
                     )
                     callLogDao.deleteCallLog(match)
                     callLogDao.insertCallLog(serverLog)
                 } else {
-                    // Already synced, just update if needed
                     callLogDao.updateCallLog(serverLog)
                 }
             } else {
-                // No local match, insert new
                 callLogDao.insertCallLog(serverLog)
             }
         }
@@ -230,9 +223,7 @@ class CallLogRepository(
         val lastSyncTime = preferenceManager.lastSyncCalls
         val since =
                 if (lastSyncTime > 0) {
-                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-                            .apply { timeZone = TimeZone.getTimeZone("UTC") }
-                            .format(Date(lastSyncTime))
+                    DateUtils.formatIso(lastSyncTime)
                 } else {
                     performFullSyncDownload()
                     return

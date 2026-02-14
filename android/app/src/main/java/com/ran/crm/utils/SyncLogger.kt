@@ -18,7 +18,12 @@ object SyncLogger {
     private const val TAG = "RanCrmSync"
     private const val LOG_FILE_NAME = "sync_logs.txt"
     
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+    private val dateFormat: SimpleDateFormat
+        get() = threadLocalDateFormat.get()!!
+
+    private val threadLocalDateFormat = ThreadLocal.withInitial {
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+    }
 
     private val scope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
 

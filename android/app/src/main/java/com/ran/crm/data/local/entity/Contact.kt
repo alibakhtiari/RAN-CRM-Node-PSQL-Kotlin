@@ -2,10 +2,19 @@ package com.ran.crm.data.local.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.google.gson.annotations.SerializedName
 
-@Entity(tableName = "contacts")
+@Entity(
+        tableName = "contacts",
+        indices =
+                [
+                        Index(value = ["phone_normalized"]),
+                        Index(value = ["sync_status"]),
+                        Index(value = ["created_by"])
+                ]
+)
 data class Contact(
         @PrimaryKey val id: String, // UUID
         val name: String,

@@ -11,7 +11,7 @@ import com.ran.crm.data.remote.model.BatchContactData
 import com.ran.crm.data.remote.model.BatchContactRequest
 import com.ran.crm.data.remote.model.CreateContactRequest
 import com.ran.crm.data.remote.safeApiCall
-import java.text.SimpleDateFormat
+import com.ran.crm.utils.DateUtils
 import java.util.*
 import kotlinx.coroutines.flow.Flow
 
@@ -171,9 +171,7 @@ class ContactRepository(
         val lastSyncTime = preferenceManager.lastSyncContacts
         val since =
                 if (lastSyncTime > 0) {
-                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-                            .apply { timeZone = TimeZone.getTimeZone("UTC") }
-                            .format(Date(lastSyncTime))
+                    DateUtils.formatIso(lastSyncTime)
                 } else {
                     // If no last sync time, fallback to full sync
                     performFullSyncDownload()
@@ -262,10 +260,7 @@ class ContactRepository(
     suspend fun createContact(name: String, phoneRaw: String, phoneNormalized: String): Contact? {
         // Create locally first (Offline First)
         val newId = UUID.randomUUID().toString()
-        val now =
-                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-                        .apply { timeZone = TimeZone.getTimeZone("UTC") }
-                        .format(Date())
+        val now = DateUtils.formatIso()
 
         val userId = preferenceManager.userId ?: "local-pending"
 

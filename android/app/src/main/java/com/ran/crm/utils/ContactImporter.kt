@@ -6,11 +6,10 @@ import android.database.Cursor
 import android.provider.ContactsContract
 import com.ran.crm.data.local.entity.Contact
 import com.ran.crm.data.repository.ContactRepository
+import com.ran.crm.utils.DateUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.*
-
-import java.text.SimpleDateFormat
 
 
 class ContactImporter(
@@ -46,8 +45,8 @@ class ContactImporter(
                             phoneRaw = deviceContact.phoneRaw,
                             phoneNormalized = deviceContact.phoneNormalized,
                             createdBy = "", // Will be set when syncing
-                            createdAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date()),
-                            updatedAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date())
+                            createdAt = DateUtils.formatIso(),
+                            updatedAt = DateUtils.formatIso()
                         )
 
                         contactRepository.insertContact(contact)
@@ -68,6 +67,7 @@ class ContactImporter(
 
     private fun getDeviceContacts(contentResolver: ContentResolver): List<DeviceContact> {
         val contacts = mutableListOf<DeviceContact>()
+        val seenPhones = mutableSetOf<String>()
 
         val projection = arrayOf(
             ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
@@ -96,8 +96,8 @@ class ContactImporter(
                     // Normalize phone number
                     val phoneNormalized = PhoneUtils.normalizePhoneNumber(phoneRaw) ?: continue
 
-                    // Skip if we already have this phone number
-                    if (contacts.any { it.phoneNormalized == phoneNormalized }) {
+                    // Skip if we already have this phone number (O(1) Set lookup)
+                    if (!seenPhones.add(phoneNormalized)) {
                         continue
                     }
 
