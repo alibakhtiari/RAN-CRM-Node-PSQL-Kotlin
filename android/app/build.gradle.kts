@@ -2,11 +2,11 @@ import java.util.Properties
 import java.io.FileInputStream
 
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.kapt")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("androidx.room")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.compose)
+    id("androidx.room") version libs.versions.room.get()
 }
 
 val localProperties = Properties()
@@ -26,14 +26,11 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
     }
-
 
     signingConfigs {
         create("release") {
@@ -72,9 +69,6 @@ android {
         compose = true
         buildConfig = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "2.2.21"
-    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -86,7 +80,6 @@ dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.kotlinx.datetime)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
@@ -98,13 +91,14 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
 
-    implementation("com.google.android.material:material:1.13.0")
-    implementation("androidx.compose.material:material-icons-extended:1.6.0")
+    implementation(libs.google.material)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    kapt(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.paging)
+    ksp(libs.androidx.room.compiler)
 
     implementation(libs.androidx.work.runtime.ktx)
 
@@ -117,21 +111,18 @@ dependencies {
 
     implementation(libs.libphonenumber)
 
-    // Encrypted preferences
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation(libs.androidx.security.crypto)
 
-    // Paging 3
-    implementation("androidx.paging:paging-runtime:3.3.5")
-    implementation("androidx.paging:paging-compose:3.3.5")
-    implementation("androidx.room:room-paging:2.7.0")
+    implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.paging.compose)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
 
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.junit)
-    androidTestImplementation("androidx.test:core:1.6.1")
-    androidTestImplementation("androidx.test:runner:1.6.1")
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
@@ -139,7 +130,5 @@ dependencies {
 }
 
 room {
-    // The schemas directory contains a schema file for each version of the Room database.
-    // This is required to enable Room auto migrations.
     schemaDirectory("$projectDir/schemas")
 }
