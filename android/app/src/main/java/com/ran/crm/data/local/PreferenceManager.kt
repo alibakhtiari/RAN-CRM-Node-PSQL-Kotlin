@@ -2,14 +2,18 @@ package com.ran.crm.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 
 class PreferenceManager(context: Context) {
 
-    private val prefs: SharedPreferences =
-            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = createEncryptedPrefs(context)
 
     companion object {
-        private const val PREFS_NAME = "crm_prefs"
+        private const val TAG = "PreferenceManager"
+        private const val PREFS_NAME = "crm_prefs_encrypted"
+        private const val LEGACY_PREFS_NAME = "crm_prefs"
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_LAST_SYNC_CONTACTS = "last_sync_contacts"
         private const val KEY_LAST_SYNC_CALLS = "last_sync_calls"
@@ -18,6 +22,63 @@ class PreferenceManager(context: Context) {
         private const val KEY_FONT_SCALE = "font_scale"
         private const val KEY_SYNC_INTERVAL_MINUTES = "sync_interval_minutes"
         private const val KEY_IS_ADMIN = "is_admin"
+
+        private fun createEncryptedPrefs(context: Context): SharedPreferences {
+            return try {
+                val masterKey = MasterKey.Builder(context)
+                        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                        .build()
+                EncryptedSharedPreferences.create(
+                        context,
+                        PREFS_NAME,
+                        masterKey,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to create encrypted prefs, clearing and retrying", e)
+                // If encrypted prefs are corrupted, delete and recreate
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().clear().apply()
+                try {
+                    val masterKey = MasterKey.Builder(context)
+                            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                            .build()
+                    EncryptedSharedPreferences.create(
+                            context,
+                            PREFS_NAME,
+                            masterKey,
+                            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                    )
+                } catch (e2: Exception) {
+                    Log.e(TAG, "Encrypted prefs totally failed, falling back to standard", e2)
+                    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                }
+            }.also {
+                // Migrate legacy unencrypted prefs if they exist
+                migrateLegacyPrefs(context, it)
+            }
+        }
+
+        private fun migrateLegacyPrefs(context: Context, encryptedPrefs: SharedPreferences) {
+            val legacyPrefs = context.getSharedPreferences(LEGACY_PREFS_NAME, Context.MODE_PRIVATE)
+            if (legacyPrefs.all.isEmpty()) return
+
+            Log.d(TAG, "Migrating legacy preferences to encrypted storage")
+            val editor = encryptedPrefs.edit()
+            for ((key, value) in legacyPrefs.all) {
+                when (value) {
+                    is String -> editor.putString(key, value)
+                    is Boolean -> editor.putBoolean(key, value)
+                    is Int -> editor.putInt(key, value)
+                    is Long -> editor.putLong(key, value)
+                    is Float -> editor.putFloat(key, value)
+                }
+            }
+            editor.apply()
+            // Clear legacy prefs after migration so we don't migrate again
+            legacyPrefs.edit().clear().apply()
+        }
     }
 
     var isAdmin: Boolean
@@ -69,11 +130,6 @@ class PreferenceManager(context: Context) {
     }
 
     fun clearSession() {
-        authToken = null
-        // We might want to keep other prefs like last sync time, or clear everything.
-        // For now, let's just clear auth token as that's what "session" implies.
-        // If we want to full logout, we can call clear()
-        // But based on MainActivity usage, let's make it clear auth token.
         authToken = null
     }
 }

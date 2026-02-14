@@ -26,8 +26,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        buildConfigField("String", "TEST_USERNAME", "\"${localProperties.getProperty("TEST_USERNAME")}\"")
-        buildConfigField("String", "TEST_PASSWORD", "\"${localProperties.getProperty("TEST_PASSWORD")}\"")
+
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -49,6 +48,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "TEST_USERNAME", "\"${localProperties.getProperty("TEST_USERNAME")}\"")
+            buildConfigField("String", "TEST_PASSWORD", "\"${localProperties.getProperty("TEST_PASSWORD")}\"")
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
@@ -113,6 +116,9 @@ dependencies {
     implementation(libs.okhttp.logging.interceptor)
 
     implementation(libs.libphonenumber)
+
+    // Encrypted preferences
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Paging 3
     implementation("androidx.paging:paging-runtime:3.3.5")
