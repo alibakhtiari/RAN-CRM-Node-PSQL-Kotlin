@@ -16,12 +16,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+
 import androidx.navigation.compose.rememberNavController
 import com.ran.crm.data.local.CrmDatabase
 import com.ran.crm.data.repository.AuthRepository
 import com.ran.crm.navigation.NavGraph
 import com.ran.crm.ui.theme.RANCRMTheme
+import com.ran.crm.utils.SyncLogger
 
 class MainActivity : ComponentActivity() {
 
@@ -36,7 +37,7 @@ class MainActivity : ComponentActivity() {
             object : android.content.BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     if (intent?.action == "com.ran.crm.ACTION_LOGOUT") {
-                        android.util.Log.d("MainActivity", "Logout broadcast received")
+                        SyncLogger.log("Logout broadcast received")
 
                         // Clear session
                         val preferenceManager =
@@ -64,8 +65,7 @@ class MainActivity : ComponentActivity() {
                                         )
                                         .show()
                             } catch (e: Exception) {
-                                android.util.Log.e(
-                                        "MainActivity",
+                                SyncLogger.log(
                                         "Failed to handle logout navigation",
                                         e
                                 )
@@ -222,12 +222,4 @@ fun CrmApp(
             preferenceManager = preferenceManager,
             contactMigrationManager = contactMigrationManager
     )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    RANCRMTheme {
-        // TODO: Add preview content
-    }
 }
