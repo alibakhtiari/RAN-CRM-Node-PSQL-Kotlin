@@ -10,7 +10,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** Centralized manager for all synchronization logic. Enforces "Server is Truth" policy. */
-class SyncManager(private val context: Context) {
+class SyncManager private constructor(private val context: Context) {
+
+    companion object {
+        @Volatile private var INSTANCE: SyncManager? = null
+
+        fun getInstance(context: Context): SyncManager {
+            return INSTANCE
+                    ?: synchronized(this) {
+                        INSTANCE ?: SyncManager(context.applicationContext).also { INSTANCE = it }
+                    }
+        }
+    }
 
     private val database = CrmDatabase.getDatabase(context)
     private val preferenceManager = PreferenceManager(context)
@@ -31,7 +42,6 @@ class SyncManager(private val context: Context) {
                 var errorMessage: String? = null
 
                 try {
-                    // 1. Sync Contacts
                     val contactsSuccess = syncContacts(isFullSync = true)
                     if (!contactsSuccess) {
                         success = false
@@ -40,7 +50,6 @@ class SyncManager(private val context: Context) {
                         contactsCount = database.contactDao().getContactsCount()
                     }
 
-                    // 2. Sync Call Logs
                     val callsSuccess = syncCallLogs(isFullSync = true)
                     if (!callsSuccess) {
                         success = false
@@ -60,7 +69,6 @@ class SyncManager(private val context: Context) {
                             "=== FULL SYNC COMPLETED in ${duration}ms. Success: $success ==="
                     )
 
-                    // Record sync audit (separate entries for contacts and calls)
                     recordSyncAudit(
                             syncType = "contacts",
                             status = if (success) "success" else "error",
@@ -90,7 +98,6 @@ class SyncManager(private val context: Context) {
                 var errorMessage: String? = null
 
                 try {
-                    // 1. Sync Contacts
                     val contactsSuccess = syncContacts(isFullSync = false)
                     if (!contactsSuccess) {
                         success = false
@@ -99,7 +106,6 @@ class SyncManager(private val context: Context) {
                         contactsCount = database.contactDao().getContactsCount()
                     }
 
-                    // 2. Sync Call Logs
                     val callsSuccess = syncCallLogs(isFullSync = false)
                     if (!callsSuccess) {
                         success = false
@@ -119,7 +125,6 @@ class SyncManager(private val context: Context) {
                             "=== DELTA SYNC COMPLETED in ${duration}ms. Success: $success ==="
                     )
 
-                    // Record sync audit (contacts and calls separately for delta)
                     recordSyncAudit(
                             syncType = "contacts",
                             status = if (success) "success" else "error",
@@ -145,7 +150,6 @@ class SyncManager(private val context: Context) {
         try {
             // STEP 0: Automatic System Import (Device -> App)
             try {
-                // Import contacts from device, don't delete from device (false)
                 val importedCount =
                         contactMigrationManager.importSystemContacts(deleteAfterImport = false)
                 if (importedCount > 0) {
@@ -166,7 +170,7 @@ class SyncManager(private val context: Context) {
             }
             SyncLogger.log("Contact Download & DB Update Complete")
 
-            // STEP 2: Export to Android Device
+            // STEP 3: Export to Android Device
             val result = contactWriter.syncToDevice()
             SyncLogger.log(
                     "Device Export Complete: Created=${result.exported}, Updated=${result.updated}, Errors=${result.errors}"
@@ -183,15 +187,8 @@ class SyncManager(private val context: Context) {
         SyncLogger.log("Starting Call Log Sync (Full: $isFullSync)")
 
         try {
-            // Use the repo to sync
-            // Note: CallLogRepository doesn't have a separate "Writer" like contacts,
-            // as we don't write BACK to the device call log (read-only usually).
-            // We just import from device -> upload to server -> download from server.
-
-            // 1. Import from Device (Always do this to capture new calls)
+            // 1. Import from Device
             try {
-                // Explicitly passing all 3 arguments to fix reported "No value passed for
-                // parameter" error
                 val callLogReader =
                         com.ran.crm.utils.CallLogReader(
                                 context,
@@ -204,7 +201,6 @@ class SyncManager(private val context: Context) {
                 )
             } catch (e: Exception) {
                 SyncLogger.log("Call Log Import Failed", e)
-                // Continue to download even if import fails
             }
 
             // 2. Upload local logs to Server
@@ -213,7 +209,6 @@ class SyncManager(private val context: Context) {
                 SyncLogger.log("Call Log Upload Complete")
             } catch (e: Exception) {
                 SyncLogger.log("Call Log Upload Failed", e)
-                // Continue to download even if upload fails
             }
 
             // 3. Download from Server (and merge)
@@ -251,7 +246,6 @@ class SyncManager(private val context: Context) {
             SyncLogger.log("Sync audit recorded: type=$syncType, status=$status")
         } catch (e: Exception) {
             SyncLogger.log("Failed to record sync audit", e)
-            // Don't fail the sync if audit recording fails
         }
     }
 }

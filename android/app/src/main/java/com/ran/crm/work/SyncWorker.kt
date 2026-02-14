@@ -33,7 +33,7 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
 
                     com.ran.crm.utils.SyncLogger.log("SyncWorker: Starting sync...")
 
-                    val syncManager = com.ran.crm.sync.SyncManager(applicationContext)
+                    val syncManager = com.ran.crm.sync.SyncManager.getInstance(applicationContext)
 
                     // Determine if full sync is needed (e.g. from input data or periodic check)
                     // For now, we'll default to Delta Sync unless specified

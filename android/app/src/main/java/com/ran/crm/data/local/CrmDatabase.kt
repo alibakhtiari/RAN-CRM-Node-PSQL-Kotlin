@@ -32,7 +32,9 @@ abstract class CrmDatabase : RoomDatabase() {
                                                 CrmDatabase::class.java,
                                                 DATABASE_NAME
                                         )
-                                        .fallbackToDestructiveMigration(false)
+                                        // TODO: Add manual Migration objects when schema
+                                        //  stabilises and user data must be preserved.
+                                        .fallbackToDestructiveMigration(true)
                                         .build()
                         INSTANCE = instance
                         instance
