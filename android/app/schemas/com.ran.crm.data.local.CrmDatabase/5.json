@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "ec57706f239d39e5eb9ef5e3b4a25f1e",
+    "identityHash": "cfbd0d6598c797b97d0b88a4140a2d05",
     "entities": [
       {
         "tableName": "users",
@@ -115,7 +115,36 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_contacts_phone_normalized",
+            "unique": false,
+            "columnNames": [
+              "phone_normalized"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_contacts_phone_normalized` ON `${TABLE_NAME}` (`phone_normalized`)"
+          },
+          {
+            "name": "index_contacts_sync_status",
+            "unique": false,
+            "columnNames": [
+              "sync_status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_contacts_sync_status` ON `${TABLE_NAME}` (`sync_status`)"
+          },
+          {
+            "name": "index_contacts_created_by",
+            "unique": false,
+            "columnNames": [
+              "created_by"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_contacts_created_by` ON `${TABLE_NAME}` (`created_by`)"
+          }
+        ]
       },
       {
         "tableName": "call_logs",
@@ -177,7 +206,46 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_call_logs_contact_id",
+            "unique": false,
+            "columnNames": [
+              "contact_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_call_logs_contact_id` ON `${TABLE_NAME}` (`contact_id`)"
+          },
+          {
+            "name": "index_call_logs_timestamp",
+            "unique": false,
+            "columnNames": [
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_call_logs_timestamp` ON `${TABLE_NAME}` (`timestamp`)"
+          },
+          {
+            "name": "index_call_logs_phone_number",
+            "unique": false,
+            "columnNames": [
+              "phone_number"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_call_logs_phone_number` ON `${TABLE_NAME}` (`phone_number`)"
+          },
+          {
+            "name": "index_call_logs_phone_number_timestamp",
+            "unique": false,
+            "columnNames": [
+              "phone_number",
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_call_logs_phone_number_timestamp` ON `${TABLE_NAME}` (`phone_number`, `timestamp`)"
+          }
+        ]
       },
       {
         "tableName": "sync_audit",
@@ -224,7 +292,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ec57706f239d39e5eb9ef5e3b4a25f1e')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cfbd0d6598c797b97d0b88a4140a2d05')"
     ]
   }
 }
