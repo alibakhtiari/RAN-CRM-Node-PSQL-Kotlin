@@ -1,25 +1,43 @@
 package com.ran.crm
 
+import android.Manifest.permission
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.SharedPreferences
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import com.ran.crm.data.local.CrmDatabase
+import com.ran.crm.data.local.PreferenceManager
+import com.ran.crm.data.manager.ContactMigrationManager
+import com.ran.crm.data.remote.ApiClient
 import com.ran.crm.data.repository.AuthRepository
+import com.ran.crm.data.repository.ContactRepository
 import com.ran.crm.navigation.NavGraph
+import com.ran.crm.service.CallLogObserver
 import com.ran.crm.ui.theme.RANCRMTheme
 import com.ran.crm.utils.SyncLogger
 
@@ -27,22 +45,21 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var database: CrmDatabase
     private lateinit var authRepository: AuthRepository
-    private lateinit var preferenceManager: com.ran.crm.data.local.PreferenceManager
-    private lateinit var contactMigrationManager: com.ran.crm.data.manager.ContactMigrationManager
+    private lateinit var preferenceManager: PreferenceManager
+    private lateinit var contactMigrationManager: ContactMigrationManager
 
-    private lateinit var callLogObserver: com.ran.crm.service.CallLogObserver
+    private lateinit var callLogObserver: CallLogObserver
 
     private val logoutReceiver =
-            object : android.content.BroadcastReceiver() {
+            object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     if (intent?.action == "com.ran.crm.ACTION_LOGOUT") {
                         SyncLogger.log("Logout broadcast received")
 
                         // Clear session
-                        val preferenceManager =
-                                com.ran.crm.data.local.PreferenceManager(applicationContext)
+                        val preferenceManager = PreferenceManager(applicationContext)
                         preferenceManager.clearSession()
-                        com.ran.crm.data.remote.ApiClient.setAuthToken(null)
+                        ApiClient.setAuthToken(null)
 
                         // Navigate to Login
                         runOnUiThread {
@@ -57,10 +74,10 @@ class MainActivity : ComponentActivity() {
                                 startActivity(restartIntent)
                                 finish()
 
-                                android.widget.Toast.makeText(
+                                Toast.makeText(
                                                 this@MainActivity,
                                                 "Session expired. Please login again.",
-                                                android.widget.Toast.LENGTH_LONG
+                                                Toast.LENGTH_LONG
                                         )
                                         .show()
                             } catch (e: Exception) {
@@ -76,36 +93,27 @@ class MainActivity : ComponentActivity() {
 
         // Initialize dependencies
         database = (application as CrmApplication).database
-        preferenceManager = com.ran.crm.data.local.PreferenceManager(this)
+        preferenceManager = PreferenceManager(this)
 
         // Restore token
-        preferenceManager.authToken?.let { token ->
-            com.ran.crm.data.remote.ApiClient.setAuthToken(token)
-        }
+        preferenceManager.authToken?.let { token -> ApiClient.setAuthToken(token) }
 
         authRepository = AuthRepository(preferenceManager)
-        val contactRepository =
-                com.ran.crm.data.repository.ContactRepository(
-                        database.contactDao(),
-                        preferenceManager
-                )
-        contactMigrationManager =
-                com.ran.crm.data.manager.ContactMigrationManager(this, contactRepository)
+        val contactRepository = ContactRepository(database.contactDao(), preferenceManager)
+        contactMigrationManager = ContactMigrationManager(this, contactRepository)
 
         // Register logout receiver
-        val filter = android.content.IntentFilter("com.ran.crm.ACTION_LOGOUT")
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        val filter = IntentFilter("com.ran.crm.ACTION_LOGOUT")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(logoutReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(logoutReceiver, filter)
         }
 
         // Register Call Log Observer
-        callLogObserver = com.ran.crm.service.CallLogObserver(this)
-        if (androidx.core.content.ContextCompat.checkSelfPermission(
-                        this,
-                        android.Manifest.permission.READ_CALL_LOG
-                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        callLogObserver = CallLogObserver(this)
+        if (ContextCompat.checkSelfPermission(this, permission.READ_CALL_LOG) ==
+                        PackageManager.PERMISSION_GRANTED
         ) {
             callLogObserver.register()
         }
@@ -117,14 +125,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             // Observe preferences for Theme and Font Scale
             var appTheme by remember { mutableStateOf(preferenceManager.appTheme) }
-            var fontScale by remember {
-                androidx.compose.runtime.mutableFloatStateOf(preferenceManager.fontScale)
-            }
+            var fontScale by remember { mutableFloatStateOf(preferenceManager.fontScale) }
 
-            androidx.compose.runtime.DisposableEffect(Unit) {
+            DisposableEffect(Unit) {
                 val listener =
-                        android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key
-                            ->
+                        SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
                             when (key) {
                                 "app_theme" -> appTheme = preferenceManager.appTheme
                                 "font_scale" -> fontScale = preferenceManager.fontScale
@@ -138,7 +143,7 @@ class MainActivity : ComponentActivity() {
                     when (appTheme) {
                         "light" -> false
                         "dark" -> true
-                        else -> androidx.compose.foundation.isSystemInDarkTheme()
+                        else -> isSystemInDarkTheme()
                     }
 
             RANCRMTheme(darkTheme = darkTheme, fontScale = fontScale) {
@@ -173,38 +178,32 @@ class MainActivity : ComponentActivity() {
 fun CrmApp(
         database: CrmDatabase,
         authRepository: AuthRepository,
-        preferenceManager: com.ran.crm.data.local.PreferenceManager,
-        contactMigrationManager: com.ran.crm.data.manager.ContactMigrationManager,
+        preferenceManager: PreferenceManager,
+        contactMigrationManager: ContactMigrationManager,
         onCallLogPermissionGranted: () -> Unit
 ) {
     val navController = rememberNavController()
 
     // Permission Handling
     val permissions = remember {
-        mutableListOf(
-                        android.Manifest.permission.READ_CONTACTS,
-                        android.Manifest.permission.WRITE_CONTACTS,
-                        android.Manifest.permission.READ_CALL_LOG
-                )
+        mutableListOf(permission.READ_CONTACTS, permission.WRITE_CONTACTS, permission.READ_CALL_LOG)
                 .apply {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU
-                    ) {
-                        add(android.Manifest.permission.POST_NOTIFICATIONS)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        add(permission.POST_NOTIFICATIONS)
                     }
                 }
     }
 
     val launcher =
-            androidx.activity.compose.rememberLauncherForActivityResult(
-                    androidx.activity.result.contract.ActivityResultContracts
-                            .RequestMultiplePermissions()
+            rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestMultiplePermissions()
             ) { perms ->
-                if (perms[android.Manifest.permission.READ_CALL_LOG] == true) {
+                if (perms[permission.READ_CALL_LOG] == true) {
                     onCallLogPermissionGranted()
                 }
             }
 
-    androidx.compose.runtime.LaunchedEffect(Unit) { launcher.launch(permissions.toTypedArray()) }
+    LaunchedEffect(Unit) { launcher.launch(permissions.toTypedArray()) }
 
     NavGraph(
             navController = navController,

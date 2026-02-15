@@ -5,6 +5,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.ran.crm.data.local.CrmDatabase
+import com.ran.crm.data.local.PreferenceManager
+import com.ran.crm.data.manager.ContactMigrationManager
 import com.ran.crm.data.repository.AuthRepository
 import com.ran.crm.data.repository.CallLogRepository
 import com.ran.crm.data.repository.ContactRepository
@@ -15,8 +17,8 @@ fun NavGraph(
         navController: NavHostController,
         database: CrmDatabase,
         authRepository: AuthRepository,
-        preferenceManager: com.ran.crm.data.local.PreferenceManager,
-        contactMigrationManager: com.ran.crm.data.manager.ContactMigrationManager
+        preferenceManager: PreferenceManager,
+        contactMigrationManager: ContactMigrationManager
 ) {
     val contactRepository = ContactRepository(database.contactDao(), preferenceManager)
     val callLogRepository = CallLogRepository(database.callLogDao(), preferenceManager)

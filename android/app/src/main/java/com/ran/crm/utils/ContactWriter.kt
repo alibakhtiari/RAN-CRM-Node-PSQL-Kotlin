@@ -180,7 +180,7 @@ class ContactWriter(
                         }
 
                         if (prunedCount > 0) {
-                                com.ran.crm.utils.SyncLogger.log(
+                                SyncLogger.log(
                                         "ContactWriter: Pruning complete. Removed $prunedCount orphans."
                                 )
                         }

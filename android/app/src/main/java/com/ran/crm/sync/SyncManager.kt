@@ -3,7 +3,12 @@ package com.ran.crm.sync
 import android.content.Context
 import com.ran.crm.data.local.CrmDatabase
 import com.ran.crm.data.local.PreferenceManager
+import com.ran.crm.data.manager.ContactMigrationManager
+import com.ran.crm.data.remote.ApiClient
+import com.ran.crm.data.remote.model.SyncAuditRequest
+import com.ran.crm.data.repository.CallLogRepository
 import com.ran.crm.data.repository.ContactRepository
+import com.ran.crm.utils.CallLogReader
 import com.ran.crm.utils.ContactWriter
 import com.ran.crm.utils.SyncLogger
 import kotlinx.coroutines.Dispatchers
@@ -26,11 +31,9 @@ class SyncManager private constructor(private val context: Context) {
     private val database = CrmDatabase.getDatabase(context)
     private val preferenceManager = PreferenceManager(context)
     private val contactRepository = ContactRepository(database.contactDao(), preferenceManager)
-    private val callLogRepository =
-            com.ran.crm.data.repository.CallLogRepository(database.callLogDao(), preferenceManager)
+    private val callLogRepository = CallLogRepository(database.callLogDao(), preferenceManager)
     private val contactWriter = ContactWriter(context, contactRepository)
-    private val contactMigrationManager =
-            com.ran.crm.data.manager.ContactMigrationManager(context, contactRepository)
+    private val contactMigrationManager = ContactMigrationManager(context, contactRepository)
 
     suspend fun performFullSync(): Boolean =
             withContext(Dispatchers.IO) {
@@ -189,12 +192,7 @@ class SyncManager private constructor(private val context: Context) {
         try {
             // 1. Import from Device
             try {
-                val callLogReader =
-                        com.ran.crm.utils.CallLogReader(
-                                context,
-                                callLogRepository,
-                                contactRepository
-                        )
+                val callLogReader = CallLogReader(context, callLogRepository, contactRepository)
                 val importResult = callLogReader.importDeviceCallLogs()
                 SyncLogger.log(
                         "Call Log Import: Imported=${importResult.imported}, Skipped=${importResult.skipped}, Errors=${importResult.errors}"
@@ -235,14 +233,14 @@ class SyncManager private constructor(private val context: Context) {
     ) {
         try {
             val request =
-                    com.ran.crm.data.remote.model.SyncAuditRequest(
+                    SyncAuditRequest(
                             syncType = syncType,
                             status = status,
                             errorMessage = errorMessage,
                             syncedContacts = contactsCount,
                             syncedCalls = callsCount
                     )
-            com.ran.crm.data.remote.ApiClient.apiService.recordSyncAudit(request)
+            ApiClient.apiService.recordSyncAudit(request)
             SyncLogger.log("Sync audit recorded: type=$syncType, status=$status")
         } catch (e: Exception) {
             SyncLogger.log("Failed to record sync audit", e)
