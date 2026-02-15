@@ -14,6 +14,7 @@ import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Route
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -49,7 +50,7 @@ object ApiClient {
         val refreshRequest =
                 Request.Builder()
                         .url("${BASE_URL}auth/refresh")
-                        .post(okhttp3.RequestBody.create(null, ByteArray(0)))
+                        .post(ByteArray(0).toRequestBody(null))
                         .header("Authorization", "Bearer $currentToken")
                         .build()
 
@@ -63,7 +64,7 @@ object ApiClient {
             val refreshResponse = plainClient.newCall(refreshRequest).execute()
 
             if (refreshResponse.isSuccessful) {
-                val body = refreshResponse.body?.string()
+                val body = refreshResponse.body.string()
                 val newToken =
                         body?.let { gson.fromJson(it, RefreshTokenResponse::class.java)?.token }
                 if (newToken != null) {
