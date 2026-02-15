@@ -30,9 +30,9 @@ class CrmApplication : Application() {
             val interval = prefs.syncIntervalMinutes
             if (interval > 0) {
                 SyncWorker.schedulePeriodicSync(this, interval)
+                // Ensure a system account exists for SyncAdapter
+                ensureSystemAccount(interval)
             }
-            // Ensure a system account exists for SyncAdapter
-            ensureSystemAccount(interval)
         }
     }
 
