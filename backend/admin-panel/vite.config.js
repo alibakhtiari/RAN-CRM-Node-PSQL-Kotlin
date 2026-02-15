@@ -8,13 +8,12 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    allowedHosts: ['ran-crm-admin', 'ran-crm-backend', 'localhost', '127.0.0.1'],
     proxy: {
-      '/auth': 'http://ran-crm-app:3000',
-      '/users': 'http://ran-crm-app:3000',
-      '/contacts': 'http://ran-crm-app:3000',
-      '/calls': 'http://ran-crm-app:3000',
-      '/sync-audit': 'http://ran-crm-app:3000',
+      '/auth': 'http://localhost:3000',
+      '/users': 'http://localhost:3000',
+      '/contacts': 'http://localhost:3000',
+      '/calls': 'http://localhost:3000',
+      '/sync-audit': 'http://localhost:3000',
     }
   },
   build: {
