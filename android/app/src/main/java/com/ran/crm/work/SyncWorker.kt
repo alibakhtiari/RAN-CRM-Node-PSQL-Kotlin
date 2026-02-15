@@ -28,6 +28,18 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
                     if (token != null) {
                         ApiClient.setAuthToken(token)
                         SyncLogger.log("SyncWorker: Auth token restored")
+
+                        // Proactively refresh the token before sync so we don't
+                        // waste a full sync cycle if the token is near expiry.
+                        try {
+                            val refreshed = ApiClient.apiService.refreshToken()
+                            ApiClient.setAuthToken(refreshed.token)
+                            preferenceManager.authToken = refreshed.token
+                            SyncLogger.log("SyncWorker: Token proactively refreshed")
+                        } catch (e: Exception) {
+                            // Non-fatal: the Authenticator will retry on 401
+                            SyncLogger.log("SyncWorker: Proactive refresh skipped", e)
+                        }
                     } else {
                         SyncLogger.log("SyncWorker: No auth token found - aborting sync")
                         return@withContext Result.failure()
@@ -70,9 +82,7 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
 
         fun schedulePeriodicSync(context: Context, intervalMinutes: Int) {
             val constraints =
-                    Constraints.Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .build()
+                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
             val syncWorkRequest =
                     PeriodicWorkRequestBuilder<SyncWorker>(
@@ -97,9 +107,7 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
 
         fun scheduleOneTimeSync(context: Context, forceFullSync: Boolean = false) {
             val constraints =
-                    Constraints.Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .build()
+                    Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
             val data = Data.Builder().putBoolean("force_full_sync", forceFullSync).build()
 
