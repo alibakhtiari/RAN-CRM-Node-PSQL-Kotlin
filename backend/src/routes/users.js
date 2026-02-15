@@ -1,8 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../config/knex'); // Use Knex
-const { authenticateToken } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/admin');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { getPaginationParams, getPaginationResult } = require('../utils/pagination');
 
 const router = express.Router();
@@ -83,6 +82,8 @@ router.patch('/:id', async (req, res) => {
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
+
+    updates.updated_at = db.fn.now();
 
     const [updatedUser] = await db('users')
       .where({ id })
