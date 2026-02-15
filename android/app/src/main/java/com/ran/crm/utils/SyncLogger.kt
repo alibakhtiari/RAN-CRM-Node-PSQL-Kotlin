@@ -2,30 +2,30 @@ package com.ran.crm.utils
 
 import android.content.Context
 import android.util.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import com.ran.crm.CrmApplication
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
- * A centralized logger for sync operations.
- * Logs to Logcat and appends to a local log file for debugging.
+ * A centralized logger for sync operations. Logs to Logcat and appends to a local log file for
+ * debugging.
  */
 object SyncLogger {
     private const val TAG = "RanCrmSync"
     private const val LOG_FILE_NAME = "sync_logs.txt"
-    
+
     private val dateFormat: SimpleDateFormat
         get() = threadLocalDateFormat.get()!!
 
-    private val threadLocalDateFormat = ThreadLocal.withInitial {
-        SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
-    }
+    private val threadLocalDateFormat =
+            ThreadLocal.withInitial { SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US) }
 
-    private val scope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+    private val scope =
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
 
     fun log(message: String, error: Throwable? = null) {
         // 1. Log to Logcat
@@ -39,10 +39,8 @@ object SyncLogger {
         // Note: In a real production app, we might use a proper logging library or database.
         // For now, a simple text file is sufficient for debugging.
         try {
-            val context = com.ran.crm.CrmApplication.instance
-            scope.launch {
-                appendLogToFile(context, message, error)
-            }
+            val context = CrmApplication.instance
+            scope.launch { appendLogToFile(context, message, error) }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to write log to file", e)
         }
@@ -60,7 +58,7 @@ object SyncLogger {
                 append("\n")
             }
             file.appendText(logEntry)
-            
+
             // Rotate logs if too large (e.g., > 5MB)
             if (file.length() > 5 * 1024 * 1024) {
                 file.writeText("") // Clear for now, or rename to .old
@@ -70,7 +68,7 @@ object SyncLogger {
             // Ignore file errors
         }
     }
-    
+
     fun getLogs(context: Context): String {
         return try {
             val file = File(context.filesDir, LOG_FILE_NAME)
@@ -79,7 +77,7 @@ object SyncLogger {
             "Failed to read logs: ${e.message}"
         }
     }
-    
+
     fun clearLogs(context: Context) {
         try {
             val file = File(context.filesDir, LOG_FILE_NAME)
