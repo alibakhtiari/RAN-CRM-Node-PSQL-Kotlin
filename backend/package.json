@@ -6,11 +6,13 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "dev:all": "concurrently -n api,admin -c blue,magenta \"npm run dev\" \"npm run admin:dev\"",
+    "admin:dev": "cd admin-panel && npm run dev",
+    "admin:build": "cd admin-panel && npm run build",
     "pm2:start": "pm2 start ecosystem.config.js --env production",
     "pm2:stop": "pm2 stop ran-crm-backend",
     "pm2:restart": "pm2 restart ran-crm-backend",
-    "pm2:logs": "pm2 logs ran-crm-backend",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "pm2:logs": "pm2 logs ran-crm-backend"
   },
   "keywords": [
     "crm",
@@ -21,24 +23,25 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
     "json2csv": "^5.0.7",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "^9.0.3",
     "knex": "^3.1.0",
-    "libphonenumber-js": "^1.10.53",
+    "libphonenumber-js": "^1.12.36",
     "morgan": "^1.10.1",
     "mysql2": "^3.17.1",
     "winston": "^3.19.0",
-    "zod": "^4.1.13"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.2",
     "http-proxy-middleware": "^3.0.5",
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.1.11"
   }
 }

@@ -1,308 +1,162 @@
 # RAN CRM Backend
 
-Contact & Call Log Sync CRM Backend API built with Node.js, Express, and PostgreSQL.
-
-## Features
-
-- JWT-based authentication
-- User management (admin only)
-- Contact synchronization with conflict resolution
-- Call log bulk upload and retrieval
-- Sync audit logging
-- Pagination support
-- Docker containerization
+Contact & Call Log Sync CRM — Node.js API + React Admin Panel.
 
 ## Tech Stack
 
-- **Runtime**: Node.js 22+ (LTS)
+- **Runtime**: Node.js 22+
 - **Framework**: Express.js
-- **Database**: PostgreSQL 17+
-- **Authentication**: JWT
-- **Container**: Docker
-
-## Quick Start
-
-### Using Docker Compose (Recommended)
-
-1. **Clone and navigate to backend directory**
-
-   ```bash
-   cd backend
-   ```
-2. **Start services**
-
-   ```bash
-   docker-compose up -d
-   ```
-3. **Check health**
-
-   ```bash
-   curl http://localhost:3000/health
-   ```
-4. **Access Admin Interface**
-
-   ```
-   http://localhost:3000/admin
-   ```
-
-   **Default Login:**
-
-   - Username: `admin`
-   - Password: `admin123`
-
-   **Test Accounts:**
-
-   - Admin: `admin` / `admin123`
-   - User: `user` / `user123`
-
-The database schema and default admin user will be automatically initialized.
-
-### Manual Setup
-
-1. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-2. **Set up PostgreSQL**
-
-   - Create database: `ran_crm`
-   - Run schema: `psql -d ran_crm -f database/schema.sql`
-3. **Configure environment**
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your database credentials
-   ```
-4. **Start server**
-
-   ```bash
-   npm run dev  # Development
-   npm start    # Production
-   ```
-
-## API Endpoints
-
-### Authentication
-
-- `POST /auth/login` - Login with email/password
-- `GET /auth/me` - Get current user info
-
-### Users (Admin Only)
-
-- `GET /users?page=&limit=` - List users
-- `POST /users` - Create user
-- `DELETE /users/:id` - Delete user
-
-### Contacts
-
-- `GET /contacts?page=&limit=` - List contacts
-- `GET /contacts/search?q=<name>&page=&limit=` - Search contacts
-- `POST /contacts` - Create/update contact (with conflict handling)
-- `PUT /contacts/:id` - Update contact (owner only)
-- `DELETE /contacts/:id` - Delete contact (owner only)
-
-### Call Logs
-
-- `GET /calls?page=&limit=` - Global call history
-- `GET /calls/:contact_id?page=&limit=` - Call history for contact
-- `POST /calls` - Bulk upload calls
-
-### Sync Audit
-
-- `GET /sync?page=&limit=` - Recent sync records
-- `POST /sync` - Record sync operation
-
-## Request/Response Examples
-
-### Login
-
-```bash
-POST /auth/login
-Content-Type: application/json
-
-{
-  "email": "admin@example.com",
-  "password": "password"
-}
-```
-
-Response:
-
-```json
-{
-  "token": "jwt-token-here",
-  "user": {
-    "id": "uuid",
-    "name": "Admin User",
-    "email": "admin@example.com",
-    "is_admin": true
-  }
-}
-```
-
-### Create Contact
-
-```bash
-POST /contacts
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "John Doe",
-  "phone_raw": "+1 (555) 123-4567",
-  "phone_normalized": "+15551234567",
-  "created_at": "2023-01-01T00:00:00Z"
-}
-```
-
-### Bulk Upload Calls
-
-```bash
-POST /calls
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "calls": [
-    {
-      "contact_id": "uuid",
-      "direction": "incoming",
-      "duration_seconds": 120,
-      "timestamp": "2023-01-01T12:00:00Z",
-      "phone_normalized": "+15551234567"
-    }
-  ]
-}
-```
-
-## Conflict Handling
-
-For contacts, if a phone number already exists:
-
-- Compare `created_at` timestamps
-- **Older wins**: Update existing record with incoming data
-- **Newer loses**: Return existing record without changes
-
-## Pagination
-
-All list endpoints support:
-
-- `page`: Page number (default: 1)
-- `limit`: Items per page (default: 10, max: 100)
-
-Response format:
-
-```json
-{
-  "data": [...],
-  "pagination": {
-    "currentPage": 1,
-    "totalPages": 5,
-    "totalItems": 50,
-    "itemsPerPage": 10,
-    "hasNext": true,
-    "hasPrev": false
-  }
-}
-```
-
-## Docker Commands
-
-```bash
-# Build and run
-docker-compose up --build
-
-# Run in background
-docker-compose up -d
-
-# Stop services
-docker-compose down
-
-# View logs
-docker-compose logs -f ran-crm-app
-
-# Rebuild after code changes
-docker-compose up --build --force-recreate
-
-# Generate JWT secret for production
-openssl rand -base64 32
-```
-
-## Environment Variables
-
-| Variable           | Default    | Description         |
-| ------------------ | ---------- | ------------------- |
-| `DB_HOST`        | localhost  | PostgreSQL host     |
-| `DB_PORT`        | 5432       | PostgreSQL port     |
-| `DB_NAME`        | ran_crm    | Database name       |
-| `DB_USER`        | postgres   | Database user       |
-| `DB_PASSWORD`    | password   | Database password   |
-| `JWT_SECRET`     | dev-secret | JWT signing secret  |
-| `JWT_EXPIRES_IN` | 24h        | JWT expiration time |
-| `PORT`           | 3000       | Server port         |
-
-## Database Schema
-
-See `database/schema.sql` for complete schema with indexes and constraints.
-
-## Security
-
-- Passwords hashed with bcrypt (12 rounds)
-- JWT tokens for authentication
-- Prepared statements prevent SQL injection
-- Admin-only endpoints protected
-- HTTPS enforced in production
-
-## Performance
-
-- Connection pooling (max 20 connections)
-- Optimized indexes on frequently queried columns
-- Batch inserts for call logs
-- Pagination limits large result sets
+- **Database**: MariaDB 10.6+
+- **Process Manager**: PM2
+- **Admin Panel**: React + Vite + Tailwind CSS
 
 ## Development
 
 ```bash
-# Install dependencies
+# Install dependencies (backend + admin panel)
 npm install
+cd admin-panel && npm install && cd ..
 
-# Run tests (when added)
-npm test
+# Run both API and Admin Panel together
+npm run dev:all
 
-# Development server with auto-reload
-npm run dev
-
-# Production build
-npm run build
+# Or run separately
+npm run dev          # API only (port 3000)
+npm run admin:dev    # Admin panel only (port 5173)
 ```
+
+**Default Accounts:**
+- Admin: `admin` / `admin123`
+- User: `user` / `user123`
 
 ## Production Deployment
 
-1. Set production environment variables
-2. Use `docker-compose.prod.yml` or deploy to container orchestration
-3. Set up database backups
-4. Configure monitoring and logging
-5. Use HTTPS with proper SSL certificates
+### 1. Set Up MariaDB
 
+```bash
+# On your MariaDB server
+mysql -u root -p
 
+CREATE DATABASE ran_crm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'ran_user'@'%' IDENTIFIED BY 'STRONG_PASSWORD_HERE';
+GRANT ALL PRIVILEGES ON ran_crm.* TO 'ran_user'@'%';
+FLUSH PRIVILEGES;
+EXIT;
+
+# Import schema and default users
+mysql -u ran_user -p ran_crm < database/schema.sql
+mysql -u ran_user -p ran_crm < database/init-admin.sql
+```
+
+### 2. Configure Environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```env
+DB_HOST=your-mariadb-host
+DB_PORT=3306
+DB_NAME=ran_crm
+DB_USER=ran_user
+DB_PASSWORD=STRONG_PASSWORD_HERE
+DB_SSL=false
+
+JWT_SECRET=GENERATE_WITH_openssl_rand_-base64_48
+NODE_ENV=production
+PORT=3000
+```
+
+### 3. Build & Start
+
+```bash
+# Install production dependencies
+npm install --omit=dev
+
+# Build admin panel
+npm run admin:build
+
+# Install PM2 globally (once)
+npm install -g pm2
+
+# Start
+npm run pm2:start
+
+# Verify
+curl http://localhost:3000/health
+```
+
+### 4. PM2 Commands
+
+```bash
+npm run pm2:start     # Start in production mode
+npm run pm2:stop      # Stop
+npm run pm2:restart   # Restart
+npm run pm2:logs      # View logs
+
+pm2 startup           # Auto-start on server reboot (run once)
+pm2 save              # Save current process list
+```
+
+## API Reference
+
+All endpoints require `Authorization: Bearer <token>` except login.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/login` | Login (username + password) |
+| `GET` | `/auth/me` | Current user info |
+| `GET` | `/contacts?page=&limit=&q=` | List/search contacts |
+| `GET` | `/contacts/search?q=` | Search contacts |
+| `GET` | `/contacts/export` | Export contacts as CSV |
+| `POST` | `/contacts` | Create contact |
+| `POST` | `/contacts/batch` | Bulk upsert contacts |
+| `PUT` | `/contacts/:id` | Update contact |
+| `DELETE` | `/contacts/:id` | Soft-delete contact |
+| `GET` | `/calls?page=&limit=` | Call history |
+| `GET` | `/calls/:contact_id` | Calls for contact |
+| `POST` | `/calls` | Bulk upload calls |
+| `GET` | `/sync` | Sync records |
+| `POST` | `/sync` | Record sync |
+| `GET` | `/sync-audit` | Sync audit (admin) |
+| `POST` | `/sync-audit` | Create audit entry |
+| `GET` | `/users` | List users (admin) |
+| `POST` | `/users` | Create user (admin) |
+| `PATCH` | `/users/:id` | Update user (admin) |
+| `DELETE` | `/users/:id` | Delete user (admin) |
+
+## Environment Variables
+
+| Variable | Default | Required | Description |
+|----------|---------|----------|-------------|
+| `DB_HOST` | `localhost` | ✅ prod | MariaDB host |
+| `DB_PORT` | `3306` | | MariaDB port |
+| `DB_NAME` | `ran_crm` | ✅ prod | Database name |
+| `DB_USER` | `root` | ✅ prod | Database user |
+| `DB_PASSWORD` | `password` | ✅ prod | Database password |
+| `DB_SSL` | `false` | | Enable SSL for remote DB |
+| `JWT_SECRET` | dev fallback | ✅ prod | JWT signing key (app crashes without it) |
+| `JWT_EXPIRES_IN` | `30d` | | Token expiration |
+| `PORT` | `3000` | | Server port |
+| `NODE_ENV` | `development` | | `production` for prod |
+
+## Project Structure
 
 ```
-# 1. Generate random secure values
-GEN_USER="ran_user_$(openssl rand -hex 4)"
-GEN_PASS=$(openssl rand -base64 24)
-GEN_SECRET=$(openssl rand -base64 48)
-
-# 2. Write them to the .env file
-cat <<EOF > .env
-DB_NAME=ran_crm
-DB_USER=$GEN_USER
-DB_PASSWORD=$GEN_PASS
-JWT_SECRET=$GEN_SECRET
-NODE_ENV=production
-EOF
-
-# 3. Show the result so you can save a copy if needed
-echo "✅ .env file created with the following credentials:"
-cat .env
+backend/
+├── src/
+│   ├── server.js          # Entry point
+│   ├── app.js             # Express config
+│   ├── config/            # DB + JWT config
+│   ├── routes/            # API routes
+│   ├── repositories/      # Data access layer
+│   ├── middleware/         # Auth, validation, errors
+│   ├── schemas/           # Zod validation schemas
+│   └── utils/             # Logger, pagination, phone
+├── admin-panel/           # React admin dashboard
+├── database/              # SQL schema + seed data
+├── ecosystem.config.js    # PM2 config
+└── knexfile.js            # Knex DB config
 ```
