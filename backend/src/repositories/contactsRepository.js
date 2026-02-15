@@ -1,4 +1,10 @@
+const crypto = require('crypto');
 const db = require('../config/knex');
+
+/**
+ * Escape special LIKE metacharacters (%, _) in user input
+ */
+const escapeLike = (str) => str.replace(/[%_\\]/g, '\\$&');
 
 class ContactsRepository {
   /**
@@ -17,23 +23,26 @@ class ContactsRepository {
         'c.updated_at',
         'u.name as creator_name'
       )
-      .whereNull('c.deleted_at')
-      .orderBy('c.updated_at', 'desc')
-      .limit(limit)
-      .offset(offset);
+      .whereNull('c.deleted_at');
 
     if (updatedSince) {
       query = query.where('c.updated_at', '>', updatedSince);
     }
 
     if (search) {
+      const escaped = escapeLike(search);
       query = query.where(qb => {
-        qb.where('c.name', 'like', `%${search}%`)
-          .orWhere('c.phone_raw', 'like', `%${search}%`);
+        qb.where('c.name', 'like', `%${escaped}%`)
+          .orWhere('c.phone_raw', 'like', `%${escaped}%`);
       });
-      // Use relevance ordering via FULLTEXT match if available
-      query = query.orderByRaw('CASE WHEN c.name LIKE ? THEN 0 ELSE 1 END ASC', [`${search}%`]);
+      // Relevance ordering: prefix matches first
+      query = query.orderByRaw('CASE WHEN c.name LIKE ? THEN 0 ELSE 1 END ASC', [`${escaped}%`]);
     }
+
+    // Default ordering + pagination AFTER search ordering
+    query = query.orderBy('c.updated_at', 'desc')
+      .limit(limit)
+      .offset(offset);
 
     return query;
   }
@@ -49,9 +58,10 @@ class ContactsRepository {
     }
 
     if (search) {
+      const escaped = escapeLike(search);
       query = query.where(qb => {
-        qb.where('c.name', 'like', `%${search}%`)
-          .orWhere('c.phone_raw', 'like', `%${search}%`);
+        qb.where('c.name', 'like', `%${escaped}%`)
+          .orWhere('c.phone_raw', 'like', `%${escaped}%`);
       });
     }
 
@@ -118,7 +128,7 @@ class ContactsRepository {
           // else: different user owns this contact, skip
         } else {
           // Insert new contact
-          const newId = trx.raw('UUID()');
+          const newId = crypto.randomUUID();
           await trx('contacts')
             .insert({
               id: newId,
@@ -130,7 +140,7 @@ class ContactsRepository {
             });
 
           const inserted = await trx('contacts')
-            .where({ phone_normalized: contact.phone_normalized })
+            .where({ id: newId })
             .first();
           inserted.is_insert = true;
           results.push(inserted);

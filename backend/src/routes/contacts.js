@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const db = require('../config/knex');
 const { authenticateToken } = require('../middleware/auth');
 const { getPaginationParams, getPaginationResult } = require('../utils/pagination');
@@ -37,7 +38,7 @@ const getContacts = asyncHandler(async (req, res) => {
 // GET /contacts
 router.get('/', getContacts);
 
-// GET /contacts/search - Legacy/Alias
+// GET /contacts/search - Legacy/Alias (MUST be before /:id)
 router.get('/search', (req, res, next) => {
   const { q } = req.query;
   if (!q || q.trim().length < 2) {
@@ -46,6 +47,29 @@ router.get('/search', (req, res, next) => {
   return getContacts(req, res, next);
 });
 
+// GET /contacts/export - Export all contacts as CSV (MUST be before /:id)
+router.get('/export', asyncHandler(async (req, res) => {
+  const contacts = await db('contacts as c')
+    .leftJoin('users as u', 'c.created_by', 'u.id')
+    .select('c.name', 'c.phone_raw', 'u.name as creator_name', 'c.created_at')
+    .whereNull('c.deleted_at')
+    .orderBy('c.created_at', 'desc');
+
+  const fields = [
+    { label: 'Name', value: 'name' },
+    { label: 'Phone', value: 'phone_raw' },
+    { label: 'Created By', value: 'creator_name' },
+    { label: 'Created At', value: (row) => new Date(row.created_at).toLocaleDateString() }
+  ];
+
+  const json2csvParser = new Parser({ fields });
+  const csv = json2csvParser.parse(contacts);
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="contacts.csv"');
+  res.send(csv);
+}));
+
 // POST /contacts
 router.post('/', validate(createContactSchema), asyncHandler(async (req, res) => {
   const { name, phone_raw, phone_normalized, created_at } = req.body;
@@ -53,7 +77,6 @@ router.post('/', validate(createContactSchema), asyncHandler(async (req, res) =>
   const normalizedPhone = normalizePhoneNumber(phone_raw);
 
   const newContact = await db.transaction(async (trx) => {
-    // Check if a contact with this phone number already exists
     const existing = await trx('contacts')
       .select('id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at')
       .where({ phone_normalized: normalizedPhone })
@@ -61,7 +84,6 @@ router.post('/', validate(createContactSchema), asyncHandler(async (req, res) =>
 
     if (existing) {
       if (existing.created_by === req.user.id) {
-        // Update if existing belongs to user and is newer
         const incomingDate = new Date(created_at || new Date());
         const existingDate = new Date(existing.created_at);
 
@@ -83,18 +105,15 @@ router.post('/', validate(createContactSchema), asyncHandler(async (req, res) =>
           return existing;
         }
       } else {
-        // Conflict
         const error = new Error('Contact with this phone number already exists');
-        error.status = 409;
-        error.data = {
-          existing_contact: existing
-        };
+        error.statusCode = 409;
+        error.isOperational = true;
         throw error;
       }
     }
 
     // Create new
-    const newId = trx.raw('UUID()');
+    const newId = crypto.randomUUID();
     await trx('contacts')
       .insert({
         id: newId,
@@ -107,7 +126,7 @@ router.post('/', validate(createContactSchema), asyncHandler(async (req, res) =>
 
     const created = await trx('contacts')
       .select('id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at')
-      .where({ phone_normalized: normalizedPhone, created_by: req.user.id })
+      .where({ id: newId })
       .first();
 
     return created;
@@ -128,7 +147,6 @@ router.post('/batch', validate(batchStructureSchema), asyncHandler(async (req, r
     return res.status(400).json({ error: 'Maximum 1000 contacts per batch request' });
   }
 
-  // 1. Prepare valid contacts
   const validContacts = [];
   const errors = [];
 
@@ -158,10 +176,8 @@ router.post('/batch', validate(batchStructureSchema), asyncHandler(async (req, r
     });
   }
 
-  // 2. Execute Batch Upsert
   const rows = await contactsRepository.batchUpsert(validContacts, req.user.id, { restoreDeleted: !!force_restore });
 
-  // 3. Process results
   const results = rows.map(row => ({
     action: row.is_insert ? 'created' : 'updated',
     contact: {
@@ -175,7 +191,6 @@ router.post('/batch', validate(batchStructureSchema), asyncHandler(async (req, r
     }
   }));
 
-  // Calculate summary
   const createdCount = results.filter(r => r.action === 'created').length;
   const updatedCount = results.filter(r => r.action === 'updated').length;
   const ignoredCount = validContacts.length - results.length;
@@ -250,29 +265,6 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   await contactsRepository.softDelete(id);
 
   res.json({ message: 'Contact deleted successfully' });
-}));
-
-// GET /contacts/export - Export all contacts as CSV
-router.get('/export', asyncHandler(async (req, res) => {
-  // Fetch all contacts with user information
-  const contacts = await db('contacts as c')
-    .leftJoin('users as u', 'c.created_by', 'u.id')
-    .select('c.name', 'c.phone_raw', 'u.name as creator_name', 'c.created_at')
-    .orderBy('c.created_at', 'desc');
-
-  const fields = [
-    { label: 'Name', value: 'name' },
-    { label: 'Phone', value: 'phone_raw' },
-    { label: 'Created By', value: 'creator_name' },
-    { label: 'Created At', value: (row) => new Date(row.created_at).toLocaleDateString() }
-  ];
-
-  const json2csvParser = new Parser({ fields });
-  const csv = json2csvParser.parse(contacts);
-
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="contacts.csv"');
-  res.send(csv);
 }));
 
 module.exports = router;

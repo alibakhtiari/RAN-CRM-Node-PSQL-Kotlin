@@ -22,7 +22,7 @@ const errorHandler = (err, req, res, next) => {
             });
         } else {
             // Programming or other unknown error: don't leak details
-            console.error('ERROR 💥', err);
+            logger.error('Unexpected error', err);
             res.status(500).json({
                 status: 'error',
                 message: 'Something went very wrong!',

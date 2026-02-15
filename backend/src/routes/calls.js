@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const db = require('../config/knex');
 const { authenticateToken } = require('../middleware/auth');
 const { getPaginationParams, getPaginationResult } = require('../utils/pagination');
@@ -144,9 +145,10 @@ router.post('/', asyncHandler(async (req, res) => {
 
       if (existingCall) continue;
 
-      const [insertId] = await trx('call_logs')
+      const callId = crypto.randomUUID();
+      await trx('call_logs')
         .insert({
-          id: trx.raw('UUID()'),
+          id: callId,
           user_id: req.user.id,
           contact_id: finalContactId,
           phone_number: phone_normalized,
@@ -156,8 +158,7 @@ router.post('/', asyncHandler(async (req, res) => {
         });
 
       const newCall = await trx('call_logs')
-        .where('id', trx.raw('LAST_INSERT_ID()'))
-        .orWhere({ user_id: req.user.id, timestamp: callTime, direction, duration_seconds })
+        .where({ id: callId })
         .first();
 
       if (newCall) results.push(newCall);

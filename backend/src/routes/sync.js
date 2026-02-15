@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const db = require('../config/knex');
 const { authenticateToken } = require('../middleware/auth');
 const { getPaginationParams, getPaginationResult } = require('../utils/pagination');
@@ -17,7 +18,7 @@ router.get('/', asyncHandler(async (req, res) => {
   const total = parseInt(countResult.count);
 
   const audits = await db('sync_audit')
-    .select('id', 'user_id', 'synced_contacts', 'synced_calls', 'created_at')
+    .select('id', 'user_id', 'sync_type', 'status', 'synced_contacts', 'synced_calls', 'created_at')
     .orderBy('created_at', 'desc')
     .limit(limit)
     .offset(offset);
@@ -25,24 +26,27 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(getPaginationResult(audits, total, page, limit));
 }));
 
-// POST /sync (optional: to record sync operations)
+// POST /sync
 router.post('/', asyncHandler(async (req, res) => {
-  const { synced_contacts = 0, synced_calls = 0 } = req.body;
+  const sync_type = req.body.sync_type || req.body.syncType || 'full';
+  const status = req.body.status || 'success';
+  const synced_contacts = req.body.synced_contacts || req.body.syncedContacts || 0;
+  const synced_calls = req.body.synced_calls || req.body.syncedCalls || 0;
 
-  const id = db.raw('UUID()');
+  const syncId = crypto.randomUUID();
 
   await db('sync_audit')
     .insert({
-      id,
+      id: syncId,
       user_id: req.user.id,
+      sync_type,
+      status,
       synced_contacts,
       synced_calls
     });
 
-  // Fetch the inserted record
   const newRecord = await db('sync_audit')
-    .where({ user_id: req.user.id })
-    .orderBy('created_at', 'desc')
+    .where({ id: syncId })
     .first();
 
   res.status(201).json({ sync_record: newRecord });

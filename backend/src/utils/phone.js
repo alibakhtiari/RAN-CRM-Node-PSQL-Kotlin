@@ -1,4 +1,5 @@
 const { parsePhoneNumber } = require('libphonenumber-js');
+const logger = require('./logger');
 
 const normalizePhoneNumber = (phone) => {
   try {
@@ -27,7 +28,7 @@ const normalizePhoneNumber = (phone) => {
       return phoneNumber.format('E.164');
     }
   } catch (error) {
-    console.error('Phone normalization error:', error);
+    logger.warn('Phone normalization error:', { phone, error: error.message });
   }
   return phone; // Return original if normalization fails
 };

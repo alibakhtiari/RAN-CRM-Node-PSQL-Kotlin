@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const db = require('../config/knex');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
@@ -44,7 +45,7 @@ router.post('/', asyncHandler(async (req, res) => {
   const saltRounds = 12;
   const passwordHash = await bcrypt.hash(password, saltRounds);
 
-  const id = db.raw('UUID()');
+  const id = crypto.randomUUID();
 
   await db('users')
     .insert({
