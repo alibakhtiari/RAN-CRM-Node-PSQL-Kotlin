@@ -268,3 +268,4 @@ java.dir
 /backend/node_modules
 backend/package-lock.json
 /instructions
+/backend/public
