@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS" />
+    <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
     <application
         android:name=".CrmApplication"
         android:allowBackup="false"
@@ -26,8 +29,36 @@
         android:usesCleartextTraffic="false"
         tools:targetApi="31">
 
+        <!-- Stub ContentProvider for SyncAdapter framework -->
+        <provider
+            android:name=".account.StubContentProvider"
+            android:authorities="com.ran.crm.provider"
+            android:exported="false"
+            android:syncable="true" />
 
+        <!-- Account Authenticator Service -->
+        <service
+            android:name=".account.CrmAuthenticatorService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator" />
+        </service>
 
+        <!-- Sync Adapter Service -->
+        <service
+            android:name=".account.CrmSyncService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter" />
+            </intent-filter>
+            <meta-data
+                android:name="android.content.SyncAdapter"
+                android:resource="@xml/sync_adapter" />
+        </service>
 
 
         <!-- WorkManager Foreground Service -->
