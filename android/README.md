@@ -75,7 +75,8 @@ The app currently filters for:
 
 ### ADB Commands
 - **List Devices**: `adb devices`
-- **View App Logs**: `adb logcat --package=com.ran.crm`
+- **View App Logs**: `adb shell "logcat --package com.ran.crm"`
+- **View App Logs (Alternative)**: `adb logcat | grep com.ran.crm`
 - **Clear Logs**: `adb logcat -c`
 
 ### Logcat Filters
