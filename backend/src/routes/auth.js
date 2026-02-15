@@ -10,11 +10,7 @@ const { loginSchema } = require('../schemas/authSchemas');
 const router = express.Router();
 
 // POST /auth/login
-router.post('/login', (req, res, next) => {
-  console.log('Login request body:', req.body);
-  console.log('Login Schema:', loginSchema);
-  next();
-}, validate(loginSchema), async (req, res) => {
+router.post('/login', validate(loginSchema), async (req, res) => {
   try {
     const { username, password } = req.body;
 
