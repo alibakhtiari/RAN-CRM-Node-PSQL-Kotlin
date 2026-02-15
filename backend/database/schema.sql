@@ -1,60 +1,55 @@
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pg_trgm";
-
+-- RAN-CRM Database Schema (MariaDB)
 -- Users table
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
+CREATE TABLE IF NOT EXISTS users (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    username VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
     password_hash TEXT NOT NULL,
-    is_admin BOOLEAN DEFAULT false,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
-);
-
+    is_admin BOOLEAN DEFAULT FALSE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 -- Contacts table
-CREATE TABLE contacts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    phone_raw TEXT NOT NULL,
-    phone_normalized TEXT NOT NULL UNIQUE,
-    created_by UUID REFERENCES users(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now()
-);
-
+CREATE TABLE IF NOT EXISTS contacts (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    name VARCHAR(255) NOT NULL,
+    phone_raw VARCHAR(50) NOT NULL,
+    phone_normalized VARCHAR(50) NOT NULL,
+    created_by CHAR(36),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at DATETIME NULL,
+    UNIQUE KEY idx_contacts_phone (phone_normalized),
+    KEY idx_contacts_created_by (created_by),
+    FULLTEXT KEY idx_contacts_name_ft (name),
+    CONSTRAINT fk_contacts_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 -- Call logs table
-CREATE TABLE call_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
+CREATE TABLE IF NOT EXISTS call_logs (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36),
+    contact_id CHAR(36),
     phone_number VARCHAR(50),
     direction VARCHAR(10) CHECK(direction IN ('incoming', 'outgoing', 'missed')),
     duration_seconds INT,
-    timestamp TIMESTAMPTZ DEFAULT now()
-);
-
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_call_logs_contact (contact_id),
+    KEY idx_call_logs_timestamp (timestamp),
+    KEY idx_call_logs_user_timestamp (user_id, timestamp),
+    CONSTRAINT fk_calls_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_calls_contact FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE
+    SET NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 -- Sync audit table
-CREATE TABLE sync_audit (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS sync_audit (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36),
     sync_type VARCHAR(20) CHECK(sync_type IN ('contacts', 'calls', 'full')),
-    status VARCHAR(20) CHECK(status IN ('success', 'error')) NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK(status IN ('success', 'error')),
     error_message TEXT,
     synced_contacts INT DEFAULT 0,
     synced_calls INT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Indexes
-CREATE UNIQUE INDEX idx_contacts_phone ON contacts(phone_normalized);
-CREATE INDEX idx_contacts_name_trgm ON contacts USING gin (name gin_trgm_ops);
-CREATE INDEX idx_call_logs_contact ON call_logs(contact_id);
-CREATE INDEX idx_call_logs_timestamp ON call_logs(timestamp DESC);
-CREATE INDEX idx_call_logs_user_timestamp ON call_logs(user_id, timestamp DESC);
-CREATE INDEX idx_sync_audit_user ON sync_audit(user_id, created_at DESC);
-
--- NOTE: Ensure the application user has ownership or permissions
--- ALTER TABLE contacts OWNER TO "app_user";
-
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_sync_audit_user (user_id, created_at),
+    CONSTRAINT fk_sync_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
