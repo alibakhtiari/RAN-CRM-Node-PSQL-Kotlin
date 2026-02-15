@@ -35,8 +35,8 @@ router.post('/login', (req, res, next) => {
 
     const token = jwt.sign(
       { id: user.id, username: user.username, is_admin: user.is_admin },
-      process.env.JWT_SECRET || 'your_jwt_secret',
-      { expiresIn: '30d' }
+      secret,
+      { expiresIn }
     );
 
     res.json({
@@ -69,6 +69,24 @@ router.get('/me', authenticateToken, async (req, res) => {
     res.json({ user });
   } catch (error) {
     console.error('Get user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /auth/refresh
+router.post('/refresh', authenticateToken, async (req, res) => {
+  try {
+    // The authenticateToken middleware already verified the token
+    // and attached req.user. Issue a fresh token with a new expiry.
+    const freshToken = jwt.sign(
+      { id: req.user.id, username: req.user.username, is_admin: req.user.is_admin },
+      secret,
+      { expiresIn }
+    );
+
+    res.json({ token: freshToken });
+  } catch (error) {
+    console.error('Token refresh error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

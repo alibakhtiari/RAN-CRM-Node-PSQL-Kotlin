@@ -8,43 +8,45 @@ import retrofit2.http.*
 
 interface CrmApiService {
 
-    @POST("auth/login") suspend fun login(@Body request: LoginRequest): LoginResponse
+        @POST("auth/login") suspend fun login(@Body request: LoginRequest): LoginResponse
 
-    @GET("auth/me") suspend fun getCurrentUser(): User
+        @GET("auth/me") suspend fun getCurrentUser(): User
 
-    @GET("health") suspend fun healthCheck(): HealthResponse
+        @GET("health") suspend fun healthCheck(): HealthResponse
 
-    @GET("contacts")
-    suspend fun getContacts(
-            @Query("page") page: Int = 1,
-            @Query("limit") limit: Int = 10,
-            @Query("updated_since") updatedSince: String? = null
-    ): PaginatedResponse<Contact>
+        @GET("contacts")
+        suspend fun getContacts(
+                @Query("page") page: Int = 1,
+                @Query("limit") limit: Int = 10,
+                @Query("updated_since") updatedSince: String? = null
+        ): PaginatedResponse<Contact>
 
-    @POST("contacts")
-    suspend fun createContact(@Body contact: CreateContactRequest): ContactResponse
+        @POST("contacts")
+        suspend fun createContact(@Body contact: CreateContactRequest): ContactResponse
 
-    @POST("contacts/batch")
-    suspend fun batchCreateContacts(@Body request: BatchContactRequest): BatchContactResponse
+        @POST("contacts/batch")
+        suspend fun batchCreateContacts(@Body request: BatchContactRequest): BatchContactResponse
 
-    @GET("calls")
-    suspend fun getCalls(
-            @Query("page") page: Int = 1,
-            @Query("limit") limit: Int = 10,
-            @Query("updated_since") updatedSince: String? = null
-    ): PaginatedResponse<CallLog>
+        @GET("calls")
+        suspend fun getCalls(
+                @Query("page") page: Int = 1,
+                @Query("limit") limit: Int = 10,
+                @Query("updated_since") updatedSince: String? = null
+        ): PaginatedResponse<CallLog>
 
-    @POST("calls") suspend fun uploadCalls(@Body request: CallUploadRequest): CallUploadResponse
+        @POST("calls") suspend fun uploadCalls(@Body request: CallUploadRequest): CallUploadResponse
 
-    @PUT("contacts/{id}")
-    suspend fun updateContact(
-            @Path("id") id: String,
-            @Body contact: CreateContactRequest
-    ): ContactResponse
+        @PUT("contacts/{id}")
+        suspend fun updateContact(
+                @Path("id") id: String,
+                @Body contact: CreateContactRequest
+        ): ContactResponse
 
-    @DELETE("contacts/{id}")
-    suspend fun deleteContact(@Path("id") id: String): retrofit2.Response<Unit>
+        @DELETE("contacts/{id}")
+        suspend fun deleteContact(@Path("id") id: String): retrofit2.Response<Unit>
 
-    @POST("sync-audit")
-    suspend fun recordSyncAudit(@Body request: SyncAuditRequest): SyncAuditResponse
+        @POST("sync-audit")
+        suspend fun recordSyncAudit(@Body request: SyncAuditRequest): SyncAuditResponse
+
+        @POST("auth/refresh") suspend fun refreshToken(): RefreshTokenResponse
 }
