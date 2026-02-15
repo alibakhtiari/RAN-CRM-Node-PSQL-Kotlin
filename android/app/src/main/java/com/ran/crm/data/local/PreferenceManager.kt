@@ -25,36 +25,45 @@ class PreferenceManager(context: Context) {
 
         private fun createEncryptedPrefs(context: Context): SharedPreferences {
             return try {
-                val masterKey = MasterKey.Builder(context)
-                        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                        .build()
-                EncryptedSharedPreferences.create(
-                        context,
-                        PREFS_NAME,
-                        masterKey,
-                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to create encrypted prefs, clearing and retrying", e)
-                // If encrypted prefs are corrupted, delete and recreate
-                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().clear().apply()
-                try {
-                    val masterKey = MasterKey.Builder(context)
-                            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                            .build()
-                    EncryptedSharedPreferences.create(
-                            context,
-                            PREFS_NAME,
-                            masterKey,
-                            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                    )
-                } catch (e2: Exception) {
-                    Log.e(TAG, "Encrypted prefs totally failed, falling back to standard", e2)
-                    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                }
-            }.also {
+                        val masterKey =
+                                MasterKey.Builder(context)
+                                        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                                        .build()
+                        EncryptedSharedPreferences.create(
+                                context,
+                                PREFS_NAME,
+                                masterKey,
+                                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to create encrypted prefs, clearing and retrying", e)
+                        // If encrypted prefs are corrupted, delete and recreate
+                        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                                .edit()
+                                .clear()
+                                .apply()
+                        try {
+                            val masterKey =
+                                    MasterKey.Builder(context)
+                                            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                                            .build()
+                            EncryptedSharedPreferences.create(
+                                    context,
+                                    PREFS_NAME,
+                                    masterKey,
+                                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                            )
+                        } catch (e2: Exception) {
+                            Log.e(
+                                    TAG,
+                                    "Encrypted prefs totally failed, falling back to standard",
+                                    e2
+                            )
+                            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        }
+                    }.also {
                 // Migrate legacy unencrypted prefs if they exist
                 migrateLegacyPrefs(context, it)
             }
@@ -131,5 +140,7 @@ class PreferenceManager(context: Context) {
 
     fun clearSession() {
         authToken = null
+        userId = null
+        isAdmin = false
     }
 }
