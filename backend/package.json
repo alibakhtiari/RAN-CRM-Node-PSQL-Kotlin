@@ -4,8 +4,12 @@
   "description": "Contact & Call Log Sync CRM Backend",
   "main": "src/server.js",
   "scripts": {
-    "start": "npx knex migrate:latest && node src/server.js",
+    "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "pm2:start": "pm2 start ecosystem.config.js --env production",
+    "pm2:stop": "pm2 stop ran-crm-backend",
+    "pm2:restart": "pm2 restart ran-crm-backend",
+    "pm2:logs": "pm2 logs ran-crm-backend",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepare": "husky"
   },

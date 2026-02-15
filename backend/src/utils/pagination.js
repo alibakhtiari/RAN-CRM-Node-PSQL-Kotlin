@@ -1,6 +1,7 @@
 const getPaginationParams = (req) => {
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
+  const rawLimit = parseInt(req.query.limit) || 10;
+  const limit = Math.min(Math.max(rawLimit, 1), 100);
   const offset = (page - 1) * limit;
 
   return { page, limit, offset };
