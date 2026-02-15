@@ -47,6 +47,11 @@ Recommended for Google Play Store:
 - **Debug**: `./gradlew bundleDebug`
 - **Release**: `./gradlew bundleRelease`
 
+### Install on Device
+- **Debug**: `./gradlew installDebug`
+- **Release**: `./gradlew installRelease`
+- **Specific Architecture (ARM64 Release)**: `./gradlew installRelease -PabiFilters=arm64-v8a`
+
 ### Cleanup
 - **Clean Build**: `./gradlew clean`
 
