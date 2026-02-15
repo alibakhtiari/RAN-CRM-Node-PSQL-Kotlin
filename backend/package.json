@@ -10,8 +10,7 @@
     "pm2:stop": "pm2 stop ran-crm-backend",
     "pm2:restart": "pm2 restart ran-crm-backend",
     "pm2:logs": "pm2 logs ran-crm-backend",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "husky"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "crm",
@@ -40,11 +39,6 @@
   "devDependencies": {
     "eslint": "^9.39.2",
     "http-proxy-middleware": "^3.0.5",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
     "nodemon": "^3.0.2"
-  },
-  "lint-staged": {
-    "*.js": "eslint --fix"
   }
 }
