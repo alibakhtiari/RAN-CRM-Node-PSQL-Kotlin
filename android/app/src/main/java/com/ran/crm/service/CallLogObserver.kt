@@ -10,8 +10,10 @@ import com.ran.crm.sync.SyncManager
 import com.ran.crm.utils.SyncLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class CallLogObserver(
@@ -19,23 +21,35 @@ class CallLogObserver(
         handler: Handler = Handler(Looper.getMainLooper())
 ) : ContentObserver(handler) {
 
-    private val job = SupervisorJob()
-    private val scope = CoroutineScope(Dispatchers.IO + job)
+    private val parentJob = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + parentJob)
+
+    /** Tracks the pending debounced sync so rapid changes coalesce into one. */
+    private var pendingSyncJob: Job? = null
 
     override fun onChange(selfChange: Boolean, uri: Uri?) {
         super.onChange(selfChange, uri)
 
         if (uri == null || uri == CallLog.Calls.CONTENT_URI) {
-            SyncLogger.log("CallLogObserver: Change detected in Call Log. Triggering Sync.")
+            SyncLogger.log("CallLogObserver: Change detected — debouncing sync")
 
-            scope.launch {
-                try {
-                    val syncManager = SyncManager.getInstance(context)
-                    syncManager.performDeltaSync()
-                } catch (e: Exception) {
-                    SyncLogger.log("CallLogObserver: Failed to trigger sync", e)
-                }
-            }
+            // Cancel any pending sync and restart the 5-second timer.
+            // This ensures rapid successive changes (e.g. incoming call + voicemail)
+            // only trigger a single sync after the dust settles.
+            pendingSyncJob?.cancel()
+            pendingSyncJob =
+                    scope.launch {
+                        delay(DEBOUNCE_MS)
+                        try {
+                            SyncLogger.log(
+                                    "CallLogObserver: Debounce elapsed — triggering delta sync"
+                            )
+                            val syncManager = SyncManager.getInstance(context)
+                            syncManager.performDeltaSync()
+                        } catch (e: Exception) {
+                            SyncLogger.log("CallLogObserver: Failed to trigger sync", e)
+                        }
+                    }
         }
     }
 
@@ -53,8 +67,13 @@ class CallLogObserver(
         if (isRegistered) {
             context.contentResolver.unregisterContentObserver(this)
             isRegistered = false
-            job.cancel("CallLogObserver unregistered")
+            pendingSyncJob?.cancel()
+            parentJob.cancel("CallLogObserver unregistered")
             SyncLogger.log("CallLogObserver: Unregistered")
         }
+    }
+
+    companion object {
+        private const val DEBOUNCE_MS = 5_000L
     }
 }
