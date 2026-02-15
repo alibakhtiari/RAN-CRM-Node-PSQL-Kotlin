@@ -1,6 +1,19 @@
 package com.ran.crm.ui.screen
 
+import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
+import android.text.format.DateUtils
+import android.util.Log
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,14 +25,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Observer
 import androidx.navigation.NavController
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.ran.crm.data.local.PreferenceManager
 import com.ran.crm.data.manager.ContactMigrationManager
 import com.ran.crm.data.remote.ApiClient
 import com.ran.crm.ui.AppConfig
 import com.ran.crm.work.SyncWorker
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,10 +66,10 @@ fun SettingsScreen(
                                 val response = ApiClient.apiService.healthCheck()
                                 isServerConnected = response.status == "OK"
                         } catch (e: Exception) {
-                                android.util.Log.e("SettingsScreen", "Health check failed", e)
+                                Log.e("SettingsScreen", "Health check failed", e)
                                 isServerConnected = false
                         }
-                        kotlinx.coroutines.delay(30000) // Check every 30 seconds
+                        delay(30000) // Check every 30 seconds
                 }
         }
 
@@ -59,9 +78,8 @@ fun SettingsScreen(
 
         // Permission launcher
         val permissionLauncher =
-                androidx.activity.compose.rememberLauncherForActivityResult(
-                        androidx.activity.result.contract.ActivityResultContracts
-                                .RequestMultiplePermissions()
+                rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestMultiplePermissions()
                 ) { permissionRefreshCount++ }
 
         // Local state for immediate UI feedback
@@ -72,16 +90,11 @@ fun SettingsScreen(
         // Permissions State
         val permissions = remember {
                 buildList {
-                        add("Read Contacts" to android.Manifest.permission.READ_CONTACTS)
-                        add("Write Contacts" to android.Manifest.permission.WRITE_CONTACTS)
-                        add("Call Log" to android.Manifest.permission.READ_CALL_LOG)
-                        if (android.os.Build.VERSION.SDK_INT >=
-                                        android.os.Build.VERSION_CODES.TIRAMISU
-                        ) {
-                                add(
-                                        "Notifications" to
-                                                android.Manifest.permission.POST_NOTIFICATIONS
-                                )
+                        add("Read Contacts" to Manifest.permission.READ_CONTACTS)
+                        add("Write Contacts" to Manifest.permission.WRITE_CONTACTS)
+                        add("Call Log" to Manifest.permission.READ_CALL_LOG)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                add("Notifications" to Manifest.permission.POST_NOTIFICATIONS)
                         }
                 }
         }
@@ -89,33 +102,27 @@ fun SettingsScreen(
         // Observe WorkManager
         DisposableEffect(Unit) {
                 val observer =
-                        androidx.lifecycle.Observer<List<androidx.work.WorkInfo>> { workInfos ->
+                        Observer<List<WorkInfo>> { workInfos ->
                                 val syncWorkInfo = workInfos.firstOrNull()
                                 if (syncWorkInfo != null) {
                                         isSyncing =
-                                                syncWorkInfo.state ==
-                                                        androidx.work.WorkInfo.State.RUNNING ||
+                                                syncWorkInfo.state == WorkInfo.State.RUNNING ||
                                                         syncWorkInfo.state ==
-                                                                androidx.work.WorkInfo.State
-                                                                        .ENQUEUED
+                                                                WorkInfo.State.ENQUEUED
 
-                                        if (syncWorkInfo.state ==
-                                                        androidx.work.WorkInfo.State.SUCCEEDED
-                                        ) {
+                                        if (syncWorkInfo.state == WorkInfo.State.SUCCEEDED) {
                                                 lastSyncTime = preferenceManager.lastSyncContacts
                                                 isSyncing = false
-                                        } else if (syncWorkInfo.state ==
-                                                        androidx.work.WorkInfo.State.FAILED ||
+                                        } else if (syncWorkInfo.state == WorkInfo.State.FAILED ||
                                                         syncWorkInfo.state ==
-                                                                androidx.work.WorkInfo.State
-                                                                        .CANCELLED
+                                                                WorkInfo.State.CANCELLED
                                         ) {
                                                 isSyncing = false
                                         }
                                 }
                         }
                 val liveData =
-                        androidx.work.WorkManager.getInstance(context)
+                        WorkManager.getInstance(context)
                                 .getWorkInfosForUniqueWorkLiveData("crm_sync_work_one_time")
 
                 liveData.observeForever(observer)
@@ -166,7 +173,7 @@ fun SettingsScreen(
                                         ) {
                                                 when (isServerConnected) {
                                                         true -> {
-                                                                androidx.compose.foundation.Canvas(
+                                                                Canvas(
                                                                         modifier =
                                                                                 Modifier.size(12.dp)
                                                                 ) {
@@ -192,7 +199,7 @@ fun SettingsScreen(
                                                                 )
                                                         }
                                                         false -> {
-                                                                androidx.compose.foundation.Canvas(
+                                                                Canvas(
                                                                         modifier =
                                                                                 Modifier.size(12.dp)
                                                                 ) {
@@ -354,8 +361,7 @@ fun SettingsScreen(
                                                                                                 false
                                                                                         )
                                                                         isImporting = false
-                                                                        android.widget.Toast
-                                                                                .makeText(
+                                                                        Toast.makeText(
                                                                                         context,
                                                                                         "Imported $count contacts",
                                                                                         android.widget
@@ -462,8 +468,7 @@ fun SettingsScreen(
 
                         // 2b. Battery Optimization
                         val powerManager = remember {
-                                context.getSystemService(Context.POWER_SERVICE) as
-                                        android.os.PowerManager
+                                context.getSystemService(Context.POWER_SERVICE) as PowerManager
                         }
                         var isIgnoringBattery by remember {
                                 mutableStateOf(
@@ -519,10 +524,9 @@ fun SettingsScreen(
                                                                                                         .ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
                                                                                         )
                                                                         intent.data =
-                                                                                android.net.Uri
-                                                                                        .parse(
-                                                                                                "package:${context.packageName}"
-                                                                                        )
+                                                                                Uri.parse(
+                                                                                        "package:${context.packageName}"
+                                                                                )
                                                                         context.startActivity(
                                                                                 intent
                                                                         )
@@ -533,8 +537,7 @@ fun SettingsScreen(
                                                                                                 context.packageName
                                                                                         )
                                                                 } catch (e: Exception) {
-                                                                        android.widget.Toast
-                                                                                .makeText(
+                                                                        Toast.makeText(
                                                                                         context,
                                                                                         "Could not open battery settings",
                                                                                         android.widget
@@ -617,45 +620,34 @@ fun SettingsScreen(
                                                         label = "Small",
                                                         selected =
                                                                 currentScale ==
-                                                                        com.ran.crm.ui.AppConfig
-                                                                                .SCALE_SMALL,
+                                                                        AppConfig.SCALE_SMALL,
                                                         onClick = {
                                                                 preferenceManager.fontScale =
-                                                                        com.ran.crm.ui.AppConfig
-                                                                                .SCALE_SMALL
-                                                                currentScale =
-                                                                        com.ran.crm.ui.AppConfig
-                                                                                .SCALE_SMALL
+                                                                        AppConfig.SCALE_SMALL
+                                                                currentScale = AppConfig.SCALE_SMALL
                                                         }
                                                 )
                                                 ThemeOption(
                                                         label = "Medium",
                                                         selected =
                                                                 currentScale ==
-                                                                        com.ran.crm.ui.AppConfig
-                                                                                .SCALE_MEDIUM,
+                                                                        AppConfig.SCALE_MEDIUM,
                                                         onClick = {
                                                                 preferenceManager.fontScale =
-                                                                        com.ran.crm.ui.AppConfig
-                                                                                .SCALE_MEDIUM
+                                                                        AppConfig.SCALE_MEDIUM
                                                                 currentScale =
-                                                                        com.ran.crm.ui.AppConfig
-                                                                                .SCALE_MEDIUM
+                                                                        AppConfig.SCALE_MEDIUM
                                                         }
                                                 )
                                                 ThemeOption(
                                                         label = "Large",
                                                         selected =
                                                                 currentScale ==
-                                                                        com.ran.crm.ui.AppConfig
-                                                                                .SCALE_LARGE,
+                                                                        AppConfig.SCALE_LARGE,
                                                         onClick = {
                                                                 preferenceManager.fontScale =
-                                                                        com.ran.crm.ui.AppConfig
-                                                                                .SCALE_LARGE
-                                                                currentScale =
-                                                                        com.ran.crm.ui.AppConfig
-                                                                                .SCALE_LARGE
+                                                                        AppConfig.SCALE_LARGE
+                                                                currentScale = AppConfig.SCALE_LARGE
                                                         }
                                                 )
                                         }
@@ -710,13 +702,10 @@ fun SettingsScreen(
                                         // Regular permissions
                                         permissions.forEach { (label, permission) ->
                                                 val isGranted =
-                                                        androidx.core.content.ContextCompat
-                                                                .checkSelfPermission(
-                                                                        context,
-                                                                        permission
-                                                                ) ==
-                                                                android.content.pm.PackageManager
-                                                                        .PERMISSION_GRANTED
+                                                        ContextCompat.checkSelfPermission(
+                                                                context,
+                                                                permission
+                                                        ) == PackageManager.PERMISSION_GRANTED
 
                                                 PermissionItem(
                                                         label = label,
@@ -731,13 +720,10 @@ fun SettingsScreen(
 
                                         // Battery Optimization
                                         val pm =
-                                                context.getSystemService(
-                                                        android.content.Context.POWER_SERVICE
-                                                ) as
-                                                        android.os.PowerManager
+                                                context.getSystemService(Context.POWER_SERVICE) as
+                                                        PowerManager
                                         val isIgnoring =
-                                                if (android.os.Build.VERSION.SDK_INT >=
-                                                                android.os.Build.VERSION_CODES.M
+                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
                                                 ) {
                                                         pm.isIgnoringBatteryOptimizations(
                                                                 context.packageName
@@ -750,7 +736,7 @@ fun SettingsScreen(
                                                 label = "Battery Opt.",
                                                 isGranted = isIgnoring,
                                                 onRequestPermission = {
-                                                        if (android.os.Build.VERSION.SDK_INT >=
+                                                        if (Build.VERSION.SDK_INT >=
                                                                         android.os.Build
                                                                                 .VERSION_CODES
                                                                                 .M
@@ -799,7 +785,32 @@ fun SettingsScreen(
                         Button(
                                 onClick = {
                                         scope.launch {
-                                                preferenceManager.clear()
+                                                // Clear only auth data — keep theme/font/sync
+                                                // preferences
+                                                preferenceManager.clearSession()
+                                                ApiClient.setAuthToken(null)
+                                                SyncWorker.cancelPeriodicSync(context)
+
+                                                // Remove system account
+                                                try {
+                                                        val accountManager =
+                                                                android.accounts.AccountManager.get(
+                                                                        context
+                                                                )
+                                                        val account =
+                                                                android.accounts.Account(
+                                                                        com.ran.crm.CrmApplication
+                                                                                .ACCOUNT_NAME,
+                                                                        com.ran.crm.CrmApplication
+                                                                                .ACCOUNT_TYPE
+                                                                )
+                                                        accountManager.removeAccountExplicitly(
+                                                                account
+                                                        )
+                                                } catch (e: Exception) {
+                                                        // Best-effort — account may not exist
+                                                }
+
                                                 navController.navigate("login") {
                                                         popUpTo(navController.graph.id) {
                                                                 inclusive = true
