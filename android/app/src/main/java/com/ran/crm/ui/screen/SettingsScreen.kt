@@ -1,5 +1,6 @@
 package com.ran.crm.ui.screen
 
+import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -340,6 +341,73 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // 2b. Battery Optimization
+            val powerManager = remember {
+                context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+            }
+            var isIgnoringBattery by remember {
+                mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
+            }
+
+            if (!isIgnoringBattery) {
+                Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        colors =
+                                CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.errorContainer
+                                )
+                ) {
+                    Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                    text = "Battery Optimization",
+                                    style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                    text =
+                                            "Disable battery optimization to keep sync running in background",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                        Button(
+                                onClick = {
+                                    try {
+                                        val intent =
+                                                android.content.Intent(
+                                                        android.provider.Settings
+                                                                .ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                                                )
+                                        intent.data =
+                                                android.net.Uri.parse(
+                                                        "package:${context.packageName}"
+                                                )
+                                        context.startActivity(intent)
+                                        // Re-check after returning
+                                        isIgnoringBattery =
+                                                powerManager.isIgnoringBatteryOptimizations(
+                                                        context.packageName
+                                                )
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(
+                                                        context,
+                                                        "Could not open battery settings",
+                                                        android.widget.Toast.LENGTH_SHORT
+                                                )
+                                                .show()
+                                    }
+                                },
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        ) { Text("Disable") }
+                    }
+                }
+            }
 
             // 3. Appearance (Font Size & Theme)
             Card(

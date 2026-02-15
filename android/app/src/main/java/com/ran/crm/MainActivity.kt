@@ -16,7 +16,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-
 import androidx.navigation.compose.rememberNavController
 import com.ran.crm.data.local.CrmDatabase
 import com.ran.crm.data.repository.AuthRepository
@@ -65,10 +64,7 @@ class MainActivity : ComponentActivity() {
                                         )
                                         .show()
                             } catch (e: Exception) {
-                                SyncLogger.log(
-                                        "Failed to handle logout navigation",
-                                        e
-                                )
+                                SyncLogger.log("Failed to handle logout navigation", e)
                             }
                         }
                     }
@@ -114,13 +110,8 @@ class MainActivity : ComponentActivity() {
             callLogObserver.register()
         }
 
-        // Schedule Periodic Sync (WorkManager)
-        val interval = preferenceManager.syncIntervalMinutes
-        if (interval > 0) {
-            com.ran.crm.work.SyncWorker.schedulePeriodicSync(this, interval)
-        } else {
-            com.ran.crm.work.SyncWorker.cancelPeriodicSync(this)
-        }
+        // Periodic sync is now scheduled in CrmApplication.onCreate()
+        // so it survives Activity restarts and device reboots.
 
         enableEdgeToEdge()
         setContent {
