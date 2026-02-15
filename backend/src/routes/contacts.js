@@ -1,5 +1,5 @@
 const express = require('express');
-const db = require('../config/knex'); // Use Knex
+const db = require('../config/knex');
 const { authenticateToken } = require('../middleware/auth');
 const { getPaginationParams, getPaginationResult } = require('../utils/pagination');
 const { normalizePhoneNumber } = require('../utils/phone');
@@ -27,16 +27,6 @@ const getContacts = asyncHandler(async (req, res) => {
 
   const search = (q && q.trim().length >= 2) ? q : null;
   const updatedSince = updated_since ? new Date(updated_since) : null;
-
-  if (search) {
-    // Set similarity threshold if searching using raw query before the main query
-    try {
-      await db.raw('SET LOCAL pg_trgm.similarity_threshold = 0.3');
-    } catch (e) {
-      // Ignore if pg_trgm is not available or fails, allowing partial search to try ILIKE
-      console.warn('pg_trgm setup failed, proceeding without similarity threshold:', e.message);
-    }
-  }
 
   const total = await contactsRepository.count({ updatedSince, search });
   const contacts = await contactsRepository.findAll({ limit, offset, updatedSince, search });
@@ -76,14 +66,18 @@ router.post('/', validate(createContactSchema), asyncHandler(async (req, res) =>
         const existingDate = new Date(existing.created_at);
 
         if (incomingDate >= existingDate) {
-          const [updated] = await trx('contacts')
+          await trx('contacts')
             .where({ id: existing.id })
             .update({
               name,
               phone_raw,
               updated_at: trx.fn.now()
-            })
-            .returning(['id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at']);
+            });
+
+          const updated = await trx('contacts')
+            .select('id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at')
+            .where({ id: existing.id })
+            .first();
           return updated;
         } else {
           return existing;
@@ -100,15 +94,21 @@ router.post('/', validate(createContactSchema), asyncHandler(async (req, res) =>
     }
 
     // Create new
-    const [created] = await trx('contacts')
+    const newId = trx.raw('UUID()');
+    await trx('contacts')
       .insert({
+        id: newId,
         name,
         phone_raw,
         phone_normalized: normalizedPhone,
         created_by: req.user.id,
         created_at: created_at || new Date()
-      })
-      .returning(['id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at']);
+      });
+
+    const created = await trx('contacts')
+      .select('id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at')
+      .where({ phone_normalized: normalizedPhone, created_by: req.user.id })
+      .first();
 
     return created;
   });
@@ -221,10 +221,14 @@ router.put('/:id', validate(updateContactSchema), asyncHandler(async (req, res) 
     updates.created_by = created_by;
   }
 
-  const [updatedContact] = await db('contacts')
+  await db('contacts')
     .where({ id })
-    .update(updates)
-    .returning(['id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at']);
+    .update(updates);
+
+  const updatedContact = await db('contacts')
+    .select('id', 'name', 'phone_raw', 'phone_normalized', 'created_by', 'created_at', 'updated_at')
+    .where({ id })
+    .first();
 
   res.json({ contact: updatedContact });
 }));

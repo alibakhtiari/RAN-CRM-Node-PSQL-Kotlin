@@ -2,12 +2,6 @@ const db = require('../config/knex');
 
 class ContactsRepository {
   /**
-   * Batch upsert contacts.
-   * @param {Array} contacts - Array of contact objects { name, phone_raw, phone_normalized, created_at }
-   * @param {string} userId - ID of the user creating the contacts
-   * @returns {Promise<Array>} - Array of upserted rows
-   */
-  /**
    * Find contacts with pagination and filtering
    */
   async findAll({ limit, offset, updatedSince, search }) {
@@ -33,13 +27,12 @@ class ContactsRepository {
     }
 
     if (search) {
-      // Use raw for trigram similarity or ILIKE
       query = query.where(qb => {
-        qb.whereRaw('c.name % ?', [search])
-          .orWhere('c.phone_raw', 'ilike', `%${search}%`);
+        qb.where('c.name', 'like', `%${search}%`)
+          .orWhere('c.phone_raw', 'like', `%${search}%`);
       });
-      // Adjust order for search
-      query = query.orderByRaw('c.name <-> ? ASC', [search]);
+      // Use relevance ordering via FULLTEXT match if available
+      query = query.orderByRaw('CASE WHEN c.name LIKE ? THEN 0 ELSE 1 END ASC', [`${search}%`]);
     }
 
     return query;
@@ -57,8 +50,8 @@ class ContactsRepository {
 
     if (search) {
       query = query.where(qb => {
-        qb.whereRaw('c.name % ?', [search])
-          .orWhere('c.phone_raw', 'ilike', `%${search}%`);
+        qb.where('c.name', 'like', `%${search}%`)
+          .orWhere('c.phone_raw', 'like', `%${search}%`);
       });
     }
 
@@ -79,40 +72,73 @@ class ContactsRepository {
   async batchUpsert(contacts, userId, options = {}) {
     if (!contacts.length) return [];
 
-    const names = contacts.map(c => c.name);
-    const phonesRaw = contacts.map(c => c.phone_raw);
-    const phonesNormalized = contacts.map(c => c.phone_normalized);
-    const createdAts = contacts.map(c => c.created_at || new Date().toISOString());
-    // Use provided created_by (UUID) if valid, otherwise fallback to the acting user's ID
-    const userIds = contacts.map(c => c.created_by || userId);
+    const restoreDeleted = options.restoreDeleted || false;
 
-    const restoreClause = options.restoreDeleted ? 'deleted_at = NULL,' : '';
+    return db.transaction(async (trx) => {
+      const results = [];
 
-    // Using raw SQL for precise UNNEST and Conditional ON CONFLICT support
-    const query = `
-      INSERT INTO contacts (name, phone_raw, phone_normalized, created_by, created_at)
-      SELECT * FROM UNNEST(?::text[], ?::text[], ?::text[], ?::uuid[], ?::timestamptz[])
-      ON CONFLICT (phone_normalized) 
-      DO UPDATE SET 
-        name = EXCLUDED.name,
-        phone_raw = EXCLUDED.phone_raw,
-        ${restoreClause}
-        updated_at = NOW()
-        -- deleted_at = NULL -- Prevent reviving soft-deleted contacts during sync for now
-      WHERE contacts.created_by = EXCLUDED.created_by -- Only update if owned by same user
-        AND EXCLUDED.created_at > contacts.created_at -- Only update if incoming is newer
-      RETURNING id, name, phone_raw, phone_normalized, created_by, created_at, updated_at, (xmax = 0) AS is_insert;
-    `;
+      for (const contact of contacts) {
+        const createdBy = contact.created_by || userId;
+        const createdAt = contact.created_at || new Date().toISOString();
 
-    const result = await db.raw(query, [
-      names,
-      phonesRaw,
-      phonesNormalized,
-      userIds,
-      createdAts
-    ]);
+        // Check if contact exists by phone_normalized
+        const existing = await trx('contacts')
+          .where({ phone_normalized: contact.phone_normalized })
+          .first();
 
-    return result.rows;
+        if (existing) {
+          // Only update if owned by same user AND incoming is newer
+          if (existing.created_by === createdBy) {
+            const incomingDate = new Date(createdAt);
+            const existingDate = new Date(existing.created_at);
+
+            if (incomingDate > existingDate) {
+              const updateData = {
+                name: contact.name,
+                phone_raw: contact.phone_raw,
+                updated_at: trx.fn.now()
+              };
+
+              if (restoreDeleted && existing.deleted_at) {
+                updateData.deleted_at = null;
+              }
+
+              await trx('contacts')
+                .where({ id: existing.id })
+                .update(updateData);
+
+              const updated = await trx('contacts')
+                .where({ id: existing.id })
+                .first();
+              updated.is_insert = false;
+              results.push(updated);
+            }
+            // else: existing is newer, skip
+          }
+          // else: different user owns this contact, skip
+        } else {
+          // Insert new contact
+          const newId = trx.raw('UUID()');
+          await trx('contacts')
+            .insert({
+              id: newId,
+              name: contact.name,
+              phone_raw: contact.phone_raw,
+              phone_normalized: contact.phone_normalized,
+              created_by: createdBy,
+              created_at: createdAt
+            });
+
+          const inserted = await trx('contacts')
+            .where({ phone_normalized: contact.phone_normalized })
+            .first();
+          inserted.is_insert = true;
+          results.push(inserted);
+        }
+      }
+
+      return results;
+    });
   }
 }
 
