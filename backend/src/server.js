@@ -1,30 +1,31 @@
 const app = require('./app');
+const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
+  logger.info(`Server running on port ${PORT}`);
+  logger.info(`Health check: http://localhost:${PORT}/health`);
 });
 
 const knex = require('./config/knex');
 
 const gracefulShutdown = async () => {
-  console.log('Received kill signal, shutting down gracefully');
+  logger.info('Received kill signal, shutting down gracefully');
   server.close(async () => {
-    console.log('Closed out remaining connections');
+    logger.info('Closed out remaining connections');
     try {
       await knex.destroy();
-      console.log('Knex connection destroyed');
+      logger.info('Knex connection destroyed');
     } catch (err) {
-      console.error('Error during database disconnection', err);
+      logger.error('Error during database disconnection', err);
     }
     process.exit(0);
   });
 
   // Force close after 10s
   setTimeout(() => {
-    console.error('Could not close connections in time, forcefully shutting down');
+    logger.error('Could not close connections in time, forcefully shutting down');
     process.exit(1);
   }, 10000);
 };

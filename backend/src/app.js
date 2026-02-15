@@ -36,7 +36,7 @@ app.use(express.urlencoded({ extended: true }));
 // Global Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  max: 500, // Limit each IP to 500 requests per 15 minutes (Android sync needs headroom)
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -47,17 +47,20 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-const { createProxyMiddleware } = require('http-proxy-middleware');
-
 // --- CONFIGURATION FOR ADMIN PANEL ---
 
 // 1. In DEVELOPMENT: Proxy /admin to the Vite dev server
 if (process.env.NODE_ENV !== 'production') {
-  app.use('/admin', createProxyMiddleware({
-    target: process.env.ADMIN_PANEL_URL || 'http://localhost:5173',
-    changeOrigin: true,
-    ws: true,
-  }));
+  try {
+    const { createProxyMiddleware } = require('http-proxy-middleware');
+    app.use('/admin', createProxyMiddleware({
+      target: process.env.ADMIN_PANEL_URL || 'http://localhost:5173',
+      changeOrigin: true,
+      ws: true,
+    }));
+  } catch (e) {
+    // http-proxy-middleware is a devDependency, may not be installed in production
+  }
 }
 
 // 2. In PRODUCTION: Serve the static files built by Vite
