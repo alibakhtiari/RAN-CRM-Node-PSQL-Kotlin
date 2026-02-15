@@ -146,7 +146,7 @@ object ApiClient {
     }
 
     private class MemoryCookieJar : CookieJar {
-        private val cookieStore = HashMap<String, List<Cookie>>()
+        private val cookieStore = java.util.concurrent.ConcurrentHashMap<String, List<Cookie>>()
 
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
             cookieStore[url.host] = cookies
