@@ -1,5 +1,9 @@
--- RAN-CRM Database Schema (MariaDB)
--- Users table
+-- RAN-CRM Database Setup (MariaDB)
+-- Run this file once to create the schema and seed default users:
+--   mysql -u ran_user -p ran_crm < database/setup.sql
+-- ============================================================
+-- Schema
+-- ============================================================
 CREATE TABLE IF NOT EXISTS users (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     username VARCHAR(255) NOT NULL UNIQUE,
@@ -9,7 +13,6 @@ CREATE TABLE IF NOT EXISTS users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
--- Contacts table
 CREATE TABLE IF NOT EXISTS contacts (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     name VARCHAR(255) NOT NULL,
@@ -24,7 +27,6 @@ CREATE TABLE IF NOT EXISTS contacts (
     FULLTEXT KEY idx_contacts_name_ft (name),
     CONSTRAINT fk_contacts_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
--- Call logs table
 CREATE TABLE IF NOT EXISTS call_logs (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     user_id CHAR(36),
@@ -40,7 +42,6 @@ CREATE TABLE IF NOT EXISTS call_logs (
     CONSTRAINT fk_calls_contact FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE
     SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
--- Sync audit table
 CREATE TABLE IF NOT EXISTS sync_audit (
     id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     user_id CHAR(36),
@@ -53,3 +54,22 @@ CREATE TABLE IF NOT EXISTS sync_audit (
     KEY idx_sync_audit_user (user_id, created_at),
     CONSTRAINT fk_sync_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+-- ============================================================
+-- Seed Data
+-- ============================================================
+-- Admin user (username: admin, password: admin123)
+INSERT IGNORE INTO users (username, name, password_hash, is_admin)
+VALUES (
+        'admin',
+        'Admin User',
+        '$2a$12$CXhuc9o2xuY2xQIJqDwd1.0D3zc.jk6Vrh6GQ6b4xeSVfgxOqBMKO',
+        TRUE
+    );
+-- Normal user (username: user, password: user123)
+INSERT IGNORE INTO users (username, name, password_hash, is_admin)
+VALUES (
+        'user',
+        'Normal User',
+        '$2a$12$nXvyTzQ/c4qVhz80hfYOkuw0ZjFSbLX6ptbAFUN3ck/SCCxEyScqO',
+        FALSE
+    );
