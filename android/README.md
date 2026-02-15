@@ -70,3 +70,21 @@ The app currently filters for:
 - `arm64-v8a`
 - `x86`
 - `x86_64`
+
+## 6. Debugging
+
+### ADB Commands
+- **List Devices**: `adb devices`
+- **View App Logs**: `adb logcat --package=com.ran.crm`
+- **Clear Logs**: `adb logcat -c`
+
+### Logcat Filters
+Recommended filters to use in Android Studio or via CLI:
+- `RanCrmSync:*`: Sync operations (contacts, call logs, background work)
+- `OkHttp:*`: Network requests and responses (Debug builds only)
+- `com.ran.crm:*`: All logs from the application
+
+To filter via command line:
+```bash
+adb logcat RanCrmSync:D OkHttp:D *:S
+```
