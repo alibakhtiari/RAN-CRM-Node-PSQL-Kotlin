@@ -43,9 +43,8 @@ GRANT ALL PRIVILEGES ON ran_crm.* TO 'ran_user'@'%';
 FLUSH PRIVILEGES;
 EXIT;
 
-# Import schema and default users
-mysql -u ran_user -p ran_crm < database/schema.sql
-mysql -u ran_user -p ran_crm < database/init-admin.sql
+# Import schema and seed data (single file)
+mysql -u ran_user -p ran_crm < database/setup.sql
 ```
 
 ### 2. Configure Environment
