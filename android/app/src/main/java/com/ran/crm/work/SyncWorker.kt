@@ -19,6 +19,9 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
     override suspend fun doWork(): Result =
             withContext(Dispatchers.IO) {
                 try {
+                    // Promote to foreground so Android doesn't kill us in Doze
+                    setForeground(SyncNotificationHelper.createForegroundInfo(applicationContext))
+
                     val preferenceManager = PreferenceManager(applicationContext)
 
                     val token = preferenceManager.authToken
@@ -69,7 +72,6 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
             val constraints =
                     Constraints.Builder()
                             .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .setRequiresBatteryNotLow(true)
                             .build()
 
             val syncWorkRequest =
@@ -97,7 +99,6 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
             val constraints =
                     Constraints.Builder()
                             .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .setRequiresBatteryNotLow(true)
                             .build()
 
             val data = Data.Builder().putBoolean("force_full_sync", forceFullSync).build()
@@ -106,6 +107,7 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
                     OneTimeWorkRequestBuilder<SyncWorker>()
                             .setConstraints(constraints)
                             .setInputData(data)
+                            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                             .setBackoffCriteria(
                                     BackoffPolicy.EXPONENTIAL,
                                     WorkRequest.MIN_BACKOFF_MILLIS,
