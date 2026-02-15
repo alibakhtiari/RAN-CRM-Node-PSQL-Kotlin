@@ -16,8 +16,13 @@ const morgan = require('morgan');
 
 const app = express();
 
-// Middleware
-app.use(morgan('combined'));
+// Middleware — HTTP request logging
+// In production: only log errors (4xx/5xx), skip static assets and successful requests
+// In development: log everything for debugging
+const morganSkip = process.env.NODE_ENV === 'production'
+  ? (req, res) => res.statusCode < 400
+  : false;
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms', { skip: morganSkip }));
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
