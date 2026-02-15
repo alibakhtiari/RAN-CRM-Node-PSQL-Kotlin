@@ -1,9 +1,11 @@
 package com.ran.crm.data.remote
 
+import android.content.Intent
 import com.google.gson.GsonBuilder
 import com.ran.crm.BuildConfig
 import com.ran.crm.CrmApplication
 import com.ran.crm.data.local.PreferenceManager
+import com.ran.crm.data.remote.model.RefreshTokenResponse
 import com.ran.crm.utils.SyncLogger
 import java.util.concurrent.TimeUnit
 import okhttp3.Authenticator
@@ -63,15 +65,7 @@ object ApiClient {
             if (refreshResponse.isSuccessful) {
                 val body = refreshResponse.body?.string()
                 val newToken =
-                        body?.let {
-                            gson.fromJson(
-                                            it,
-                                            com.ran.crm.data.remote.model
-                                                            .RefreshTokenResponse::class
-                                                    .java
-                                    )
-                                    ?.token
-                        }
+                        body?.let { gson.fromJson(it, RefreshTokenResponse::class.java)?.token }
                 if (newToken != null) {
                     // Update the stored token
                     setAuthToken(newToken)
@@ -143,7 +137,7 @@ object ApiClient {
         SyncLogger.log("ApiClient: Auth failed after refresh attempt. Broadcasting logout.")
         try {
             val context = CrmApplication.instance
-            val intent = android.content.Intent("com.ran.crm.ACTION_LOGOUT")
+            val intent = Intent("com.ran.crm.ACTION_LOGOUT")
             intent.setPackage(context.packageName)
             context.sendBroadcast(intent)
         } catch (e: Exception) {
