@@ -269,3 +269,4 @@ java.dir
 backend/package-lock.json
 /instructions
 /backend/public
+backend/admin-panel/package-lock.json
