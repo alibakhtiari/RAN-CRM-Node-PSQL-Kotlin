@@ -2,6 +2,15 @@
 
 Contact & Call Log Sync CRM — Node.js API with React Admin Panel.
 
+## Clone (Backend Only)
+
+```bash
+git clone --depth 1 --filter=blob:none --sparse https://github.com/alibakhtiari/RAN-CRM-Node-PSQL-Kotlin.git
+cd RAN-CRM-Node-PSQL-Kotlin
+git sparse-checkout set backend
+cd backend
+```
+
 ## Quick Start (Development)
 
 ```bash
@@ -80,6 +89,21 @@ npm run pm2:logs        # View logs
 pm2 startup             # Auto-start on reboot (run once)
 pm2 save                # Save process list
 ```
+
+### 6. Log Rotation
+
+PM2 logs are not auto-cleared. Set up rotation once:
+
+```bash
+pm2 install pm2-logrotate
+pm2 set pm2-logrotate:max_size 10M
+pm2 set pm2-logrotate:retain 7
+pm2 set pm2-logrotate:compress true
+```
+
+To flush logs manually: `pm2 flush`
+
+> In production, only 4xx/5xx errors are logged. Successful requests (2xx/3xx) are skipped.
 
 ---
 
