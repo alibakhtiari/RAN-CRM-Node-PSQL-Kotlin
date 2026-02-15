@@ -12,6 +12,7 @@ import com.ran.crm.data.remote.model.BatchContactRequest
 import com.ran.crm.data.remote.model.CreateContactRequest
 import com.ran.crm.data.remote.safeApiCall
 import com.ran.crm.utils.DateUtils
+import com.ran.crm.utils.SyncLogger
 import java.util.*
 import kotlinx.coroutines.flow.Flow
 
@@ -83,7 +84,7 @@ class ContactRepository(
         } catch (e: Exception) {
             // Failed to update remotely, but it's marked as dirty locally.
             // SyncAdapter will pick it up later.
-            com.ran.crm.utils.SyncLogger.log(
+            SyncLogger.log(
                     "Repo: Update failed, marked as dirty. Error: ${e.message}"
             )
         }
@@ -98,7 +99,7 @@ class ContactRepository(
             ApiClient.apiService.deleteContact(contact.id)
         } catch (e: Exception) {
             // If offline, we can't delete remotely.
-            com.ran.crm.utils.SyncLogger.log("Repo: Delete failed. Error: ${e.message}")
+            SyncLogger.log("Repo: Delete failed. Error: ${e.message}")
         }
     }
 
@@ -117,7 +118,7 @@ class ContactRepository(
         val limit = 50
         var hasMore = true
 
-        com.ran.crm.utils.SyncLogger.log("Repo: Starting Full Download (Mark and Sweep)")
+        SyncLogger.log("Repo: Starting Full Download (Mark and Sweep)")
 
         // 1. Mark all as pending deletion
         contactDao.markAllPendingDeletion()
@@ -132,7 +133,7 @@ class ContactRepository(
                     val response = result.data
                     val contacts = response.data
 
-                    com.ran.crm.utils.SyncLogger.log(
+                    SyncLogger.log(
                             "Repo: Fetched page $page, count: ${contacts.size}"
                     )
 
@@ -157,7 +158,7 @@ class ContactRepository(
 
         // 3. Delete remaining pending deletion
         contactDao.deletePendingDeletion()
-        com.ran.crm.utils.SyncLogger.log("Repo: Full sync cleanup complete")
+        SyncLogger.log("Repo: Full sync cleanup complete")
 
         updateLastSyncTime()
     }
@@ -178,7 +179,7 @@ class ContactRepository(
                     return
                 }
 
-        com.ran.crm.utils.SyncLogger.log("Repo: Starting Delta Download (since $since)")
+        SyncLogger.log("Repo: Starting Delta Download (since $since)")
 
         var page = 1
         val limit = 50
@@ -197,7 +198,7 @@ class ContactRepository(
                     if (contacts.isNotEmpty()) {
                         val entities = contacts.map { it.copy(syncStatus = 0) }
                         contactDao.insertContacts(entities)
-                        com.ran.crm.utils.SyncLogger.log(
+                        SyncLogger.log(
                                 "Repo: Delta fetched ${contacts.size} contacts"
                         )
                     }
@@ -210,7 +211,7 @@ class ContactRepository(
                 }
                 is com.ran.crm.data.remote.ApiResult.Error -> {
                     val msg = "Failed to download delta contacts: ${result.message}"
-                    com.ran.crm.utils.SyncLogger.log(msg)
+                    SyncLogger.log(msg)
                     // Ensure we don't crash the sync process
                     return
                 }
@@ -224,7 +225,7 @@ class ContactRepository(
         val dirtyContacts = contactDao.getDirtyContacts()
         if (dirtyContacts.isEmpty()) return
 
-        com.ran.crm.utils.SyncLogger.log("Repo: Uploading ${dirtyContacts.size} dirty contacts")
+        SyncLogger.log("Repo: Uploading ${dirtyContacts.size} dirty contacts")
 
         val chunks = dirtyContacts.chunked(100)
 
@@ -247,12 +248,12 @@ class ContactRepository(
                 if (result is com.ran.crm.data.remote.ApiResult.Success) {
                     // Mark these as synced
                     contactDao.markAsSynced(chunk.map { it.id })
-                    com.ran.crm.utils.SyncLogger.log("Repo: Batch upload success")
+                    SyncLogger.log("Repo: Batch upload success")
                 } else {
-                    com.ran.crm.utils.SyncLogger.log("Repo: Batch upload failed")
+                    SyncLogger.log("Repo: Batch upload failed")
                 }
             } catch (e: Exception) {
-                com.ran.crm.utils.SyncLogger.log("Repo: Batch upload exception: ${e.message}")
+                SyncLogger.log("Repo: Batch upload exception: ${e.message}")
             }
         }
     }

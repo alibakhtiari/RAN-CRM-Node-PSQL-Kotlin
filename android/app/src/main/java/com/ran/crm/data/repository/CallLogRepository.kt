@@ -8,6 +8,7 @@ import com.ran.crm.data.remote.model.CallData
 import com.ran.crm.data.remote.model.CallUploadRequest
 import com.ran.crm.data.remote.safeApiCall
 import com.ran.crm.utils.DateUtils
+import com.ran.crm.utils.SyncLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -68,7 +69,7 @@ class CallLogRepository(
      * server).
      */
     suspend fun uploadCallLogsToServer() {
-        com.ran.crm.utils.SyncLogger.log("CallLogRepo: Starting Upload")
+        SyncLogger.log("CallLogRepo: Starting Upload")
 
         // Get all local call logs
         val localLogs = callLogDao.getAllCallLogs().first()
@@ -77,11 +78,11 @@ class CallLogRepository(
         val logsToUpload = localLogs.filter { it.id.contains("_") }
 
         if (logsToUpload.isEmpty()) {
-            com.ran.crm.utils.SyncLogger.log("CallLogRepo: No logs to upload")
+            SyncLogger.log("CallLogRepo: No logs to upload")
             return
         }
 
-        com.ran.crm.utils.SyncLogger.log("CallLogRepo: Uploading ${logsToUpload.size} logs")
+        SyncLogger.log("CallLogRepo: Uploading ${logsToUpload.size} logs")
 
         // Convert to CallData format
         val uploadData =
@@ -106,7 +107,7 @@ class CallLogRepository(
 
             when (result) {
                 is com.ran.crm.data.remote.ApiResult.Success -> {
-                    com.ran.crm.utils.SyncLogger.log("CallLogRepo: Uploaded batch of ${batch.size}")
+                    SyncLogger.log("CallLogRepo: Uploaded batch of ${batch.size}")
 
                     // Delete uploaded logs (they'll be downloaded with server UUIDs)
                     val logsInThisBatch = logsToUpload.drop(index * batchSize).take(batch.size)
@@ -114,14 +115,14 @@ class CallLogRepository(
                     uploadedCount += batch.size
                 }
                 is com.ran.crm.data.remote.ApiResult.Error -> {
-                    com.ran.crm.utils.SyncLogger.log(
+                    SyncLogger.log(
                             "CallLogRepo: Upload failed: ${result.message}"
                     )
                 }
             }
         }
 
-        com.ran.crm.utils.SyncLogger.log(
+        SyncLogger.log(
                 "CallLogRepo: Upload complete. Uploaded and deleted $uploadedCount temporary logs"
         )
     }
@@ -137,7 +138,7 @@ class CallLogRepository(
         var hasMore = true
         val serverLogIds = mutableSetOf<String>()
 
-        com.ran.crm.utils.SyncLogger.log("CallLogRepo: Starting Full Download")
+        SyncLogger.log("CallLogRepo: Starting Full Download")
 
         while (hasMore) {
             val result = safeApiCall { ApiClient.apiService.getCalls(page = page, limit = limit) }
@@ -147,7 +148,7 @@ class CallLogRepository(
                     val response = result.data
                     val serverLogs = response.data
 
-                    com.ran.crm.utils.SyncLogger.log(
+                    SyncLogger.log(
                             "CallLogRepo: Fetched page $page, count: ${serverLogs.size}"
                     )
 
@@ -174,7 +175,7 @@ class CallLogRepository(
         val logsToDelete = localLogs.filter { !serverLogIds.contains(it.id) }
 
         if (logsToDelete.isNotEmpty()) {
-            com.ran.crm.utils.SyncLogger.log(
+            SyncLogger.log(
                     "CallLogRepo: Deleting ${logsToDelete.size} local logs not on server"
             )
             logsToDelete.forEach { callLogDao.deleteCallLog(it) }
@@ -204,7 +205,7 @@ class CallLogRepository(
 
             if (match != null) {
                 if (match.id != serverLog.id) {
-                    com.ran.crm.utils.SyncLogger.log(
+                    SyncLogger.log(
                             "CallLogRepo: Merging duplicate log. Local: ${match.id} -> Server: ${serverLog.id}"
                     )
                     callLogDao.deleteCallLog(match)
@@ -229,7 +230,7 @@ class CallLogRepository(
                     return
                 }
 
-        com.ran.crm.utils.SyncLogger.log("CallLogRepo: Starting Delta Download (since $since)")
+        SyncLogger.log("CallLogRepo: Starting Delta Download (since $since)")
 
         var page = 1
         val limit = 50
@@ -247,7 +248,7 @@ class CallLogRepository(
 
                     if (serverLogs.isNotEmpty()) {
                         mergeCallLogs(serverLogs)
-                        com.ran.crm.utils.SyncLogger.log(
+                        SyncLogger.log(
                                 "CallLogRepo: Delta fetched ${serverLogs.size} logs"
                         )
                     }
@@ -260,7 +261,7 @@ class CallLogRepository(
                 }
                 is com.ran.crm.data.remote.ApiResult.Error -> {
                     val msg = "Failed to download delta call logs: ${result.message}"
-                    com.ran.crm.utils.SyncLogger.log(msg)
+                    SyncLogger.log(msg)
                     // Ensure we don't crash the sync process
                     return
                 }
