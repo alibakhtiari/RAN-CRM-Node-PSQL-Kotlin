@@ -2,87 +2,88 @@ package com.ran.crm.utils
 
 import android.content.ContentResolver
 import android.content.Context
-import android.database.Cursor
 import android.provider.ContactsContract
 import com.ran.crm.data.local.entity.Contact
 import com.ran.crm.data.repository.ContactRepository
-import com.ran.crm.utils.DateUtils
+import java.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.*
-
 
 class ContactImporter(
-    private val context: Context,
-    private val contactRepository: ContactRepository
+        private val context: Context,
+        private val contactRepository: ContactRepository
 ) {
 
-    data class ImportResult(
-        val imported: Int,
-        val skipped: Int,
-        val errors: Int
-    )
+    data class ImportResult(val imported: Int, val skipped: Int, val errors: Int)
 
-    suspend fun importDeviceContacts(): ImportResult = withContext(Dispatchers.IO) {
-        var imported = 0
-        var skipped = 0
-        var errors = 0
+    suspend fun importDeviceContacts(): ImportResult =
+            withContext(Dispatchers.IO) {
+                var imported = 0
+                var skipped = 0
+                var errors = 0
 
-        try {
-            val contentResolver = context.contentResolver
-            val contacts = getDeviceContacts(contentResolver)
-
-            for (deviceContact in contacts) {
                 try {
-                    // Check if contact already exists
-                    val existingContact = contactRepository.getContactByPhoneNormalized(deviceContact.phoneNormalized)
+                    val contentResolver = context.contentResolver
+                    val contacts = getDeviceContacts(contentResolver)
 
-                    if (existingContact == null) {
-                        // Create new contact
-                        val contact = Contact(
-                            id = UUID.randomUUID().toString(),
-                            name = deviceContact.name,
-                            phoneRaw = deviceContact.phoneRaw,
-                            phoneNormalized = deviceContact.phoneNormalized,
-                            createdBy = "", // Will be set when syncing
-                            createdAt = DateUtils.formatIso(),
-                            updatedAt = DateUtils.formatIso()
-                        )
+                    for (deviceContact in contacts) {
+                        try {
+                            // Check if contact already exists
+                            val existingContact =
+                                    contactRepository.getContactByPhoneNormalized(
+                                            deviceContact.phoneNormalized
+                                    )
 
-                        contactRepository.insertContact(contact)
-                        imported++
-                    } else {
-                        skipped++
+                            if (existingContact == null) {
+                                // Create new contact
+                                val contact =
+                                        Contact(
+                                                id = UUID.randomUUID().toString(),
+                                                name = deviceContact.name,
+                                                phoneRaw = deviceContact.phoneRaw,
+                                                phoneNormalized = deviceContact.phoneNormalized,
+                                                createdBy = "", // Will be set when syncing
+                                                createdAt = DateUtils.formatIso(),
+                                                updatedAt = DateUtils.formatIso(),
+                                                syncStatus = 1 // Dirty / Pending Sync
+                                        )
+
+                                contactRepository.insertContact(contact)
+                                imported++
+                            } else {
+                                skipped++
+                            }
+                        } catch (e: Exception) {
+                            errors++
+                        }
                     }
                 } catch (e: Exception) {
                     errors++
                 }
-            }
-        } catch (e: Exception) {
-            errors++
-        }
 
-        ImportResult(imported, skipped, errors)
-    }
+                ImportResult(imported, skipped, errors)
+            }
 
     private fun getDeviceContacts(contentResolver: ContentResolver): List<DeviceContact> {
         val contacts = mutableListOf<DeviceContact>()
         val seenPhones = mutableSetOf<String>()
 
-        val projection = arrayOf(
-            ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
-            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-            ContactsContract.CommonDataKinds.Phone.NUMBER,
-            ContactsContract.CommonDataKinds.Phone.TYPE
-        )
+        val projection =
+                arrayOf(
+                        ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
+                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                        ContactsContract.CommonDataKinds.Phone.NUMBER,
+                        ContactsContract.CommonDataKinds.Phone.TYPE
+                )
 
-        val cursor = contentResolver.query(
-            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            projection,
-            null,
-            null,
-            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
-        )
+        val cursor =
+                contentResolver.query(
+                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                        projection,
+                        null,
+                        null,
+                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
+                )
 
         cursor?.use { c ->
             val nameIndex = c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
@@ -113,8 +114,8 @@ class ContactImporter(
     }
 
     private data class DeviceContact(
-        val name: String,
-        val phoneRaw: String,
-        val phoneNormalized: String
+            val name: String,
+            val phoneRaw: String,
+            val phoneNormalized: String
     )
 }
