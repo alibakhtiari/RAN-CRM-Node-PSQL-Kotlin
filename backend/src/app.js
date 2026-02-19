@@ -52,6 +52,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Redirect root to admin panel
+app.get('/', (req, res) => {
+  res.redirect('/admin');
+});
+
 // --- CONFIGURATION FOR ADMIN PANEL ---
 
 // 1. In DEVELOPMENT: Proxy /admin to the Vite dev server
