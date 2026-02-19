@@ -26,7 +26,19 @@ object ApiClient {
 
     @Volatile private var authToken: String? = null
 
-    @Suppress("DEPRECATION") private val gson = GsonBuilder().setLenient().create()
+    @Suppress("DEPRECATION")
+    private val gson =
+            GsonBuilder()
+                    .setLenient()
+                    .registerTypeAdapter(
+                            Boolean::class.java,
+                            com.ran.crm.utils.BooleanTypeAdapter()
+                    )
+                    .registerTypeAdapter(
+                            Boolean::class.javaObjectType,
+                            com.ran.crm.utils.BooleanTypeAdapter()
+                    )
+                    .create()
 
     /**
      * OkHttp Authenticator that transparently refreshes the JWT when a 401 is received. If refresh
