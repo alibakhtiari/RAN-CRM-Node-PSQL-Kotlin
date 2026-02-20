@@ -89,7 +89,7 @@ class ContactsRepository {
 
       for (const contact of contacts) {
         const createdBy = contact.created_by || userId;
-        const createdAt = contact.created_at || new Date().toISOString();
+        const createdAt = contact.created_at ? new Date(contact.created_at) : new Date();
 
         // Check if contact exists by phone_normalized
         const existing = await trx('contacts')
