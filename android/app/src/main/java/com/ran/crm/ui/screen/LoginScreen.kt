@@ -20,140 +20,168 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.ran.crm.R
 import com.ran.crm.data.repository.AuthRepository
+import com.ran.crm.work.SyncWorker
 import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(onLoginSuccess: () -> Unit, authRepository: AuthRepository) {
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+        var username by remember { mutableStateOf("") }
+        var password by remember { mutableStateOf("") }
+        var isLoading by remember { mutableStateOf(false) }
+        var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        val context = LocalContext.current
 
-    val focusManager = LocalFocusManager.current
+        val focusManager = LocalFocusManager.current
 
-    Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-    ) {
-        Image(
-                painter = painterResource(id = R.drawable.logo),
-                contentDescription = "App Logo",
-                modifier = Modifier.size(120.dp)
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineLarge
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text(stringResource(R.string.username)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions =
-                        KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text(stringResource(R.string.password)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions =
-                        KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Done
-                        ),
-                keyboardActions =
-                        KeyboardActions(
-                                onDone = {
-                                    focusManager.clearFocus()
-                                    if (username.isNotBlank() && password.isNotBlank()) {
-                                        scope.launch {
-                                            isLoading = true
-                                            errorMessage = null
-
-                                            val result = authRepository.login(username, password)
-                                            result.fold(
-                                                    onSuccess = { onLoginSuccess() },
-                                                    onFailure = { exception ->
-                                                        errorMessage =
-                                                                exception.message
-                                                                        ?: context.getString(
-                                                                                R.string
-                                                                                        .login_failed
-                                                                        )
-                                                    }
-                                            )
-
-                                            isLoading = false
-                                        }
-                                    }
-                                }
-                        )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        errorMessage?.let {
-            Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        Button(
-                onClick = {
-                    focusManager.clearFocus()
-                    if (username.isNotBlank() && password.isNotBlank()) {
-                        scope.launch {
-                            isLoading = true
-                            errorMessage = null
-
-                            val result = authRepository.login(username, password)
-                            result.fold(
-                                    onSuccess = { onLoginSuccess() },
-                                    onFailure = { exception ->
-                                        errorMessage =
-                                                exception.message
-                                                        ?: context.getString(R.string.login_failed)
-                                    }
-                            )
-
-                            isLoading = false
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && username.isNotBlank() && password.isNotBlank()
+        Column(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
         ) {
-            if (isLoading) {
-                // This CircularProgressIndicator is inside the Button's composable lambda
-                // which is a valid place for it.
-                CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                Image(
+                        painter = painterResource(id = R.drawable.logo),
+                        contentDescription = "App Logo",
+                        modifier = Modifier.size(120.dp)
                 )
-            } else {
-                Text(stringResource(R.string.login))
-            }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineLarge
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                OutlinedTextField(
+                        value = username,
+                        onValueChange = { username = it },
+                        label = { Text(stringResource(R.string.username)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardActions =
+                                KeyboardActions(
+                                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                                )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text(stringResource(R.string.password)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions =
+                                KeyboardOptions(
+                                        keyboardType = KeyboardType.Password,
+                                        imeAction = ImeAction.Done
+                                ),
+                        keyboardActions =
+                                KeyboardActions(
+                                        onDone = {
+                                                focusManager.clearFocus()
+                                                if (username.isNotBlank() && password.isNotBlank()
+                                                ) {
+                                                        scope.launch {
+                                                                isLoading = true
+                                                                errorMessage = null
+
+                                                                val result =
+                                                                        authRepository.login(
+                                                                                username,
+                                                                                password
+                                                                        )
+                                                                result.fold(
+                                                                        onSuccess = {
+                                                                                SyncWorker
+                                                                                        .scheduleOneTimeSync(
+                                                                                                context,
+                                                                                                forceFullSync =
+                                                                                                        true
+                                                                                        )
+                                                                                onLoginSuccess()
+                                                                        },
+                                                                        onFailure = { exception ->
+                                                                                errorMessage =
+                                                                                        exception
+                                                                                                .message
+                                                                                                ?: context.getString(
+                                                                                                        R.string
+                                                                                                                .login_failed
+                                                                                                )
+                                                                        }
+                                                                )
+
+                                                                isLoading = false
+                                                        }
+                                                }
+                                        }
+                                )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                errorMessage?.let {
+                        Text(
+                                text = it,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                Button(
+                        onClick = {
+                                focusManager.clearFocus()
+                                if (username.isNotBlank() && password.isNotBlank()) {
+                                        scope.launch {
+                                                isLoading = true
+                                                errorMessage = null
+
+                                                val result =
+                                                        authRepository.login(username, password)
+                                                result.fold(
+                                                        onSuccess = {
+                                                                SyncWorker.scheduleOneTimeSync(
+                                                                        context,
+                                                                        forceFullSync = true
+                                                                )
+                                                                onLoginSuccess()
+                                                        },
+                                                        onFailure = { exception ->
+                                                                errorMessage =
+                                                                        exception.message
+                                                                                ?: context.getString(
+                                                                                        R.string
+                                                                                                .login_failed
+                                                                                )
+                                                        }
+                                                )
+
+                                                isLoading = false
+                                        }
+                                }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isLoading && username.isNotBlank() && password.isNotBlank()
+                ) {
+                        if (isLoading) {
+                                // This CircularProgressIndicator is inside the Button's composable
+                                // lambda
+                                // which is a valid place for it.
+                                CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                )
+                        } else {
+                                Text(stringResource(R.string.login))
+                        }
+                }
         }
-    }
 }

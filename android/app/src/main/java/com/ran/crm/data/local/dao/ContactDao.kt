@@ -60,7 +60,7 @@ interface ContactDao {
         // Mark and Sweep
         @Transaction
         @Query(
-                "UPDATE contacts SET sync_status = 2"
+                "UPDATE contacts SET sync_status = 2 WHERE sync_status = 0"
         ) // 2 = Pending Deletion (Temporary state for sync)
         suspend fun markAllPendingDeletion()
 
@@ -68,5 +68,6 @@ interface ContactDao {
         suspend fun unmarkPendingDeletion(id: String)
 
         @Transaction
-        @Query("DELETE FROM contacts WHERE sync_status = 2") suspend fun deletePendingDeletion()
+        @Query("DELETE FROM contacts WHERE sync_status = 2")
+        suspend fun deletePendingDeletion()
 }

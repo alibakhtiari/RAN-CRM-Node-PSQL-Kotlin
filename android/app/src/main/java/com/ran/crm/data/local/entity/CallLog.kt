@@ -17,7 +17,7 @@ import com.google.gson.annotations.SerializedName
                 ]
 )
 data class CallLog(
-        @PrimaryKey val id: String, // UUID
+        @PrimaryKey @SerializedName("id") val id: String, // UUID
         @ColumnInfo(name = "user_id") @SerializedName("user_id") val userId: String, // UUID
         @ColumnInfo(name = "user_name")
         @SerializedName("user_name")
@@ -25,11 +25,11 @@ data class CallLog(
         @ColumnInfo(name = "contact_id")
         @SerializedName("contact_id")
         val contactId: String?, // UUID or null
-        val direction: String, // "incoming" | "outgoing" | "missed"
+        @SerializedName("direction") val direction: String, // "incoming" | "outgoing" | "missed"
         @ColumnInfo(name = "duration_seconds")
         @SerializedName("duration_seconds")
         val durationSeconds: Int,
-        val timestamp: String, // ISO 8601 timestamp
+        @SerializedName("timestamp") val timestamp: String, // ISO 8601 timestamp
         @ColumnInfo(name = "phone_number")
         @SerializedName("phone_number")
         val phoneNumber: String?,

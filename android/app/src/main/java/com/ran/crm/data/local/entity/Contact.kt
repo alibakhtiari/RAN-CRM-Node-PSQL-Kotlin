@@ -16,8 +16,8 @@ import com.google.gson.annotations.SerializedName
                 ]
 )
 data class Contact(
-        @PrimaryKey val id: String, // UUID
-        val name: String,
+        @PrimaryKey @SerializedName("id") val id: String, // UUID
+        @SerializedName("name") val name: String,
         @ColumnInfo(name = "phone_raw") @SerializedName("phone_raw") val phoneRaw: String,
         @ColumnInfo(name = "phone_normalized")
         @SerializedName("phone_normalized")

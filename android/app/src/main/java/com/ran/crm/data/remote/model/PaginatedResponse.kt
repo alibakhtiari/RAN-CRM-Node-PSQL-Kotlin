@@ -1,15 +1,17 @@
 package com.ran.crm.data.remote.model
 
+import com.google.gson.annotations.SerializedName
+
 data class PaginatedResponse<T>(
-    val data: List<T>,
-    val pagination: PaginationInfo
+        @SerializedName("data") val data: List<T>,
+        @SerializedName("pagination") val pagination: PaginationInfo
 )
 
 data class PaginationInfo(
-    val currentPage: Int,
-    val totalPages: Int,
-    val totalItems: Int,
-    val itemsPerPage: Int,
-    val hasNext: Boolean,
-    val hasPrev: Boolean
+        @SerializedName("currentPage") val currentPage: Int,
+        @SerializedName("totalPages") val totalPages: Int,
+        @SerializedName("totalItems") val totalItems: Int,
+        @SerializedName("itemsPerPage") val itemsPerPage: Int,
+        @SerializedName("hasNext") val hasNext: Boolean,
+        @SerializedName("hasPrev") val hasPrev: Boolean
 )

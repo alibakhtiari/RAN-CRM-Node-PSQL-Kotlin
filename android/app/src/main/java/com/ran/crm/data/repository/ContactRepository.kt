@@ -84,9 +84,7 @@ class ContactRepository(
         } catch (e: Exception) {
             // Failed to update remotely, but it's marked as dirty locally.
             // SyncAdapter will pick it up later.
-            SyncLogger.log(
-                    "Repo: Update failed, marked as dirty. Error: ${e.message}"
-            )
+            SyncLogger.log("Repo: Update failed, marked as dirty. Error: ${e.message}")
         }
     }
 
@@ -133,9 +131,7 @@ class ContactRepository(
                     val response = result.data
                     val contacts = response.data
 
-                    SyncLogger.log(
-                            "Repo: Fetched page $page, count: ${contacts.size}"
-                    )
+                    SyncLogger.log("Repo: Fetched page $page, count: ${contacts.size}")
 
                     if (contacts.isNotEmpty()) {
                         // 2. Insert/Update and Unmark
@@ -198,9 +194,7 @@ class ContactRepository(
                     if (contacts.isNotEmpty()) {
                         val entities = contacts.map { it.copy(syncStatus = 0) }
                         contactDao.insertContacts(entities)
-                        SyncLogger.log(
-                                "Repo: Delta fetched ${contacts.size} contacts"
-                        )
+                        SyncLogger.log("Repo: Delta fetched ${contacts.size} contacts")
                     }
 
                     if (contacts.size < limit) {
@@ -246,9 +240,17 @@ class ContactRepository(
                 val result = safeApiCall { ApiClient.apiService.batchCreateContacts(batchRequest) }
 
                 if (result is com.ran.crm.data.remote.ApiResult.Success) {
-                    // Mark these as synced
-                    contactDao.markAsSynced(chunk.map { it.id })
-                    SyncLogger.log("Repo: Batch upload success")
+                    val response = result.data
+                    val syncedIds = response.results.map { it.contact.id }
+
+                    if (syncedIds.isNotEmpty()) {
+                        contactDao.markAsSynced(syncedIds)
+                    }
+
+                    if (response.errors.isNotEmpty()) {
+                        SyncLogger.log("Repo: Batch upload had ${response.errors.size} errors")
+                    }
+                    SyncLogger.log("Repo: Batch upload success: ${syncedIds.size} created/updated")
                 } else {
                     SyncLogger.log("Repo: Batch upload failed")
                 }

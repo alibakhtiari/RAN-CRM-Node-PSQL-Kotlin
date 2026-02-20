@@ -1,11 +1,11 @@
 package com.ran.crm.data.remote.model
 
-data class BatchContactRequest(
-    val contacts: List<BatchContactData>
-)
+import com.google.gson.annotations.SerializedName
+
+data class BatchContactRequest(@SerializedName("contacts") val contacts: List<BatchContactData>)
 
 data class BatchContactData(
-    val name: String,
-    val phone_raw: String,
-    val created_at: String? = null
+        @SerializedName("name") val name: String,
+        @SerializedName("phone_raw") val phone_raw: String,
+        @SerializedName("created_at") val created_at: String? = null
 )

@@ -154,7 +154,21 @@ fun SettingsScreen(
                 ) {
                         // 1. Server Status
                         Card(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier =
+                                        Modifier.fillMaxWidth().clickable {
+                                                scope.launch {
+                                                        isServerConnected = null
+                                                        try {
+                                                                val response =
+                                                                        ApiClient.apiService
+                                                                                .healthCheck()
+                                                                isServerConnected =
+                                                                        response.status == "OK"
+                                                        } catch (e: Exception) {
+                                                                isServerConnected = false
+                                                        }
+                                                }
+                                        },
                                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
                                 Row(
@@ -717,66 +731,6 @@ fun SettingsScreen(
                                                         }
                                                 )
                                         }
-
-                                        // Battery Optimization
-                                        val pm =
-                                                context.getSystemService(Context.POWER_SERVICE) as
-                                                        PowerManager
-                                        val isIgnoring =
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                                                ) {
-                                                        pm.isIgnoringBatteryOptimizations(
-                                                                context.packageName
-                                                        )
-                                                } else {
-                                                        true
-                                                }
-
-                                        PermissionItem(
-                                                label = "Battery Opt.",
-                                                isGranted = isIgnoring,
-                                                onRequestPermission = {
-                                                        if (Build.VERSION.SDK_INT >=
-                                                                        android.os.Build
-                                                                                .VERSION_CODES
-                                                                                .M
-                                                        ) {
-                                                                try {
-                                                                        val intent =
-                                                                                android.content
-                                                                                        .Intent(
-                                                                                                android.provider
-                                                                                                        .Settings
-                                                                                                        .ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-                                                                                        )
-                                                                                        .apply {
-                                                                                                data =
-                                                                                                        android.net
-                                                                                                                .Uri
-                                                                                                                .parse(
-                                                                                                                        "package:${context.packageName}"
-                                                                                                                )
-                                                                                        }
-                                                                        context.startActivity(
-                                                                                intent
-                                                                        )
-                                                                } catch (e: Exception) {
-                                                                        try {
-                                                                                val intent =
-                                                                                        android.content
-                                                                                                .Intent(
-                                                                                                        android.provider
-                                                                                                                .Settings
-                                                                                                                .ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
-                                                                                                )
-                                                                                context.startActivity(
-                                                                                        intent
-                                                                                )
-                                                                        } catch (e2: Exception) {}
-                                                                }
-                                                        }
-                                                }
-                                        )
                                 }
                         }
 

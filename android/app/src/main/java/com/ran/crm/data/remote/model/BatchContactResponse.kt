@@ -1,30 +1,31 @@
 package com.ran.crm.data.remote.model
 
+import com.google.gson.annotations.SerializedName
 import com.ran.crm.data.local.entity.Contact
 
 data class BatchContactResponse(
-    val results: List<BatchContactResult>,
-    val errors: List<BatchContactError>,
-    val summary: BatchContactSummary
+        @SerializedName("results") val results: List<BatchContactResult>,
+        @SerializedName("errors") val errors: List<BatchContactError>,
+        @SerializedName("summary") val summary: BatchContactSummary
 )
 
 data class BatchContactResult(
-    val index: Int,
-    val action: String, // "created", "updated", "existing"
-    val contact: Contact
+        @SerializedName("index") val index: Int = 0,
+        @SerializedName("action") val action: String, // "created", "updated", "existing"
+        @SerializedName("contact") val contact: Contact
 )
 
 data class BatchContactError(
-    val index: Int,
-    val error: String,
-    val existing_contact: Contact? = null,
-    val contact: BatchContactData
+        @SerializedName("index") val index: Int,
+        @SerializedName("error") val error: String,
+        @SerializedName("existing_contact") val existing_contact: Contact? = null,
+        @SerializedName("contact") val contact: BatchContactData
 )
 
 data class BatchContactSummary(
-    val total: Int,
-    val created: Int,
-    val updated: Int,
-    val existing: Int,
-    val errors: Int
+        @SerializedName("total") val total: Int,
+        @SerializedName("created") val created: Int,
+        @SerializedName("updated") val updated: Int,
+        @SerializedName("existing") val existing: Int,
+        @SerializedName("errors") val errors: Int
 )
