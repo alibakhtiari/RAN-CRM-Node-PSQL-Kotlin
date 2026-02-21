@@ -39,7 +39,7 @@ export default function UserCallLogsTab({ userId }: { userId: string }) {
                 <div className="text-red-600 py-4 text-center">Failed to load call logs</div>
             ) : isLoading ? (
                 <div className="text-center py-4 text-gray-500">Loading call logs...</div>
-            ) : !data?.items?.length ? (
+            ) : !data?.data?.length ? (
                 <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
                     No call logs found.
                 </div>
@@ -59,7 +59,7 @@ export default function UserCallLogsTab({ userId }: { userId: string }) {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 bg-white">
-                                            {data?.items?.map((call: CallLog) => (
+                                            {data?.data?.map((call: CallLog) => (
                                                 <tr key={call.id}>
                                                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                                                         {call.contact_name || 'Unknown'}
@@ -88,7 +88,7 @@ export default function UserCallLogsTab({ userId }: { userId: string }) {
                         </div>
                     </div>
 
-                    {(data?.totalPages || 0) > 1 && (
+                    {(data?.pagination?.totalPages || 0) > 1 && (
                         <div className="mt-4 flex items-center justify-between">
                             <button
                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -98,11 +98,11 @@ export default function UserCallLogsTab({ userId }: { userId: string }) {
                                 Previous
                             </button>
                             <span className="text-sm text-gray-700">
-                                Page <span className="font-semibold">{page}</span> of <span className="font-semibold">{data.totalPages}</span>
+                                Page <span className="font-semibold">{page}</span> of <span className="font-semibold">{data.pagination.totalPages}</span>
                             </span>
                             <button
-                                onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
-                                disabled={page === data.totalPages}
+                                onClick={() => setPage((p) => Math.min(data.pagination.totalPages, p + 1))}
+                                disabled={page === data.pagination.totalPages}
                                 className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50"
                             >
                                 Next
