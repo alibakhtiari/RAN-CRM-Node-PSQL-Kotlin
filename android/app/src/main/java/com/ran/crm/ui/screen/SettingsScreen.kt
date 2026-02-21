@@ -316,7 +316,8 @@ fun SettingsScreen(
                                                         onClick = {
                                                                 SyncWorker.scheduleOneTimeSync(
                                                                         context,
-                                                                        forceFullSync = true
+                                                                        forceFullSync = true,
+                                                                        isManual = true
                                                                 )
                                                         },
                                                         enabled = !isSyncing,

@@ -63,7 +63,8 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
                         Result.success()
                     } else {
                         SyncLogger.log("SyncWorker: Sync failed")
-                        Result.retry()
+                        val isManual = inputData.getBoolean("is_manual", false)
+                        if (isManual) Result.failure() else Result.retry()
                     }
                 } catch (e: CancellationException) {
                     SyncLogger.log("SyncWorker: Sync cancelled")
@@ -105,11 +106,19 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
                     )
         }
 
-        fun scheduleOneTimeSync(context: Context, forceFullSync: Boolean = false) {
+        fun scheduleOneTimeSync(
+                context: Context,
+                forceFullSync: Boolean = false,
+                isManual: Boolean = false
+        ) {
             val constraints =
                     Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
-            val data = Data.Builder().putBoolean("force_full_sync", forceFullSync).build()
+            val data =
+                    Data.Builder()
+                            .putBoolean("force_full_sync", forceFullSync)
+                            .putBoolean("is_manual", isManual)
+                            .build()
 
             val syncWorkRequest =
                     OneTimeWorkRequestBuilder<SyncWorker>()

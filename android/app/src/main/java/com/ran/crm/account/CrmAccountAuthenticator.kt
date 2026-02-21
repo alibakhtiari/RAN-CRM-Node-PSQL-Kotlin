@@ -13,46 +13,56 @@ import android.os.Bundle
  * management itself via [com.ran.crm.data.remote.ApiClient]. This class exists solely so we can
  * register a system account type and attach a SyncAdapter to it.
  */
-class CrmAccountAuthenticator(context: Context) : AbstractAccountAuthenticator(context) {
+class CrmAccountAuthenticator(private val mContext: Context) :
+        AbstractAccountAuthenticator(mContext) {
 
-    override fun editProperties(
-            response: AccountAuthenticatorResponse?,
-            accountType: String?
-    ): Bundle? = null
+        override fun editProperties(
+                response: AccountAuthenticatorResponse?,
+                accountType: String?
+        ): Bundle? = null
 
-    override fun addAccount(
-            response: AccountAuthenticatorResponse?,
-            accountType: String?,
-            authTokenType: String?,
-            requiredFeatures: Array<out String>?,
-            options: Bundle?
-    ): Bundle? = null
+        override fun addAccount(
+                response: AccountAuthenticatorResponse?,
+                accountType: String?,
+                authTokenType: String?,
+                requiredFeatures: Array<out String>?,
+                options: Bundle?
+        ): Bundle {
+                val intent = android.content.Intent(mContext, com.ran.crm.MainActivity::class.java)
+                intent.putExtra(
+                        android.accounts.AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE,
+                        response
+                )
+                val bundle = Bundle()
+                bundle.putParcelable(android.accounts.AccountManager.KEY_INTENT, intent)
+                return bundle
+        }
 
-    override fun confirmCredentials(
-            response: AccountAuthenticatorResponse?,
-            account: Account?,
-            options: Bundle?
-    ): Bundle? = null
+        override fun confirmCredentials(
+                response: AccountAuthenticatorResponse?,
+                account: Account?,
+                options: Bundle?
+        ): Bundle? = null
 
-    override fun getAuthToken(
-            response: AccountAuthenticatorResponse?,
-            account: Account?,
-            authTokenType: String?,
-            options: Bundle?
-    ): Bundle? = null
+        override fun getAuthToken(
+                response: AccountAuthenticatorResponse?,
+                account: Account?,
+                authTokenType: String?,
+                options: Bundle?
+        ): Bundle? = null
 
-    override fun getAuthTokenLabel(authTokenType: String?): String? = null
+        override fun getAuthTokenLabel(authTokenType: String?): String? = null
 
-    override fun updateCredentials(
-            response: AccountAuthenticatorResponse?,
-            account: Account?,
-            authTokenType: String?,
-            options: Bundle?
-    ): Bundle? = null
+        override fun updateCredentials(
+                response: AccountAuthenticatorResponse?,
+                account: Account?,
+                authTokenType: String?,
+                options: Bundle?
+        ): Bundle? = null
 
-    override fun hasFeatures(
-            response: AccountAuthenticatorResponse?,
-            account: Account?,
-            features: Array<out String>?
-    ): Bundle? = null
+        override fun hasFeatures(
+                response: AccountAuthenticatorResponse?,
+                account: Account?,
+                features: Array<out String>?
+        ): Bundle? = null
 }
