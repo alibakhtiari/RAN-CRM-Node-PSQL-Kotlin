@@ -16,6 +16,9 @@ const morgan = require('morgan');
 
 const app = express();
 
+// Trust reverse proxy for rate limiting (e.g., Nginx, HAProxy)
+app.set('trust proxy', 1);
+
 // Middleware — HTTP request logging
 // In production: only log errors (4xx/5xx), skip static assets and successful requests
 // In development: log everything for debugging
