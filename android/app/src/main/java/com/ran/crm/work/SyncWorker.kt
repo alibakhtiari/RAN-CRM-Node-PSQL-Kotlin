@@ -18,6 +18,7 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
 
     override suspend fun doWork(): Result =
             withContext(Dispatchers.IO) {
+                SyncLogger.log("SyncWorker: === Worker Started ===")
                 try {
                     // Promote to foreground so Android doesn't kill us in Doze
                     setForeground(SyncNotificationHelper.createForegroundInfo(applicationContext))
@@ -58,13 +59,27 @@ class SyncWorker(context: Context, workerParams: WorkerParameters) :
                                 syncManager.performDeltaSync()
                             }
 
+                    val isManual = inputData.getBoolean("is_manual", false)
                     if (success) {
-                        SyncLogger.log("SyncWorker: Sync completed successfully")
+                        SyncLogger.log(
+                                "SyncWorker: Sync completed successfully (forceFullSync=$forceFullSync, isManual=$isManual)"
+                        )
                         Result.success()
                     } else {
-                        SyncLogger.log("SyncWorker: Sync failed")
-                        val isManual = inputData.getBoolean("is_manual", false)
-                        if (isManual) Result.failure() else Result.retry()
+                        SyncLogger.log(
+                                "SyncWorker: Sync failed (forceFullSync=$forceFullSync, isManual=$isManual)"
+                        )
+                        if (isManual) {
+                            SyncLogger.log(
+                                    "SyncWorker: Manual sync failed - returning Result.failure() to stop UI spinner"
+                            )
+                            Result.failure()
+                        } else {
+                            SyncLogger.log(
+                                    "SyncWorker: Background sync failed - returning Result.retry() to queue backoff"
+                            )
+                            Result.retry()
+                        }
                     }
                 } catch (e: CancellationException) {
                     SyncLogger.log("SyncWorker: Sync cancelled")

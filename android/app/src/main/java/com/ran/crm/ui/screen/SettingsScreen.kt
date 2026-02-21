@@ -34,7 +34,6 @@ import androidx.navigation.NavController
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.ran.crm.data.local.PreferenceManager
-import com.ran.crm.data.manager.ContactMigrationManager
 import com.ran.crm.data.remote.ApiClient
 import com.ran.crm.ui.AppConfig
 import com.ran.crm.work.SyncWorker
@@ -46,7 +45,6 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
         navController: NavController,
         preferenceManager: PreferenceManager,
-        contactMigrationManager: ContactMigrationManager,
         onBackClick: () -> Unit
 ) {
         val context = LocalContext.current
@@ -105,10 +103,10 @@ fun SettingsScreen(
                         Observer<List<WorkInfo>> { workInfos ->
                                 val syncWorkInfo = workInfos.firstOrNull()
                                 if (syncWorkInfo != null) {
-                                        isSyncing =
-                                                syncWorkInfo.state == WorkInfo.State.RUNNING ||
-                                                        syncWorkInfo.state ==
-                                                                WorkInfo.State.ENQUEUED
+                                        // Only show the spinner if the sync is actually running,
+                                        // since ENQUEUED could just be a scheduled periodic sync or
+                                        // a backoff retry.
+                                        isSyncing = syncWorkInfo.state == WorkInfo.State.RUNNING
 
                                         if (syncWorkInfo.state == WorkInfo.State.SUCCEEDED) {
                                                 lastSyncTime = preferenceManager.lastSyncContacts
@@ -314,6 +312,10 @@ fun SettingsScreen(
 
                                                 Button(
                                                         onClick = {
+                                                                android.util.Log.d(
+                                                                        "SettingsScreen",
+                                                                        "Manual sync requested by user"
+                                                                )
                                                                 SyncWorker.scheduleOneTimeSync(
                                                                         context,
                                                                         forceFullSync = true,
@@ -345,71 +347,7 @@ fun SettingsScreen(
                                                 }
                                         }
 
-                                        HorizontalDivider()
-
-                                        Text(
-                                                text = "Import Contacts",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                modifier =
-                                                        Modifier.padding(start = 16.dp, top = 8.dp)
-                                        )
-
-                                        var isImporting by remember { mutableStateOf(false) }
-
-                                        Row(
-                                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                                Text(
-                                                        text = "Import from Device",
-                                                        style = MaterialTheme.typography.bodySmall
-                                                )
-
-                                                Button(
-                                                        onClick = {
-                                                                scope.launch {
-                                                                        isImporting = true
-                                                                        val count =
-                                                                                contactMigrationManager
-                                                                                        .importSystemContacts(
-                                                                                                false
-                                                                                        )
-                                                                        isImporting = false
-                                                                        Toast.makeText(
-                                                                                        context,
-                                                                                        "Imported $count contacts",
-                                                                                        android.widget
-                                                                                                .Toast
-                                                                                                .LENGTH_SHORT
-                                                                                )
-                                                                                .show()
-                                                                }
-                                                        },
-                                                        enabled = !isImporting,
-                                                        contentPadding =
-                                                                PaddingValues(
-                                                                        horizontal = 16.dp,
-                                                                        vertical = 8.dp
-                                                                )
-                                                ) {
-                                                        if (isImporting) {
-                                                                CircularProgressIndicator(
-                                                                        modifier =
-                                                                                Modifier.size(
-                                                                                        16.dp
-                                                                                ),
-                                                                        color =
-                                                                                MaterialTheme
-                                                                                        .colorScheme
-                                                                                        .onPrimary,
-                                                                        strokeWidth = 2.dp
-                                                                )
-                                                        } else {
-                                                                Text("Import")
-                                                        }
-                                                }
-                                        }
+                                        // Import Contacts section removed to run automatically
 
                                         HorizontalDivider()
 
@@ -463,114 +401,13 @@ fun SettingsScreen(
                                                                 )
                                                         }
                                                 )
-                                                ThemeOption(
-                                                        label = "Manual",
-                                                        selected = currentInterval == 0,
-                                                        onClick = {
-                                                                preferenceManager
-                                                                        .syncIntervalMinutes = 0
-                                                                currentInterval = 0
-                                                                SyncWorker.cancelPeriodicSync(
-                                                                        context
-                                                                )
-                                                        }
-                                                )
                                         }
                                 }
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // 2b. Battery Optimization
-                        val powerManager = remember {
-                                context.getSystemService(Context.POWER_SERVICE) as PowerManager
-                        }
-                        var isIgnoringBattery by remember {
-                                mutableStateOf(
-                                        powerManager.isIgnoringBatteryOptimizations(
-                                                context.packageName
-                                        )
-                                )
-                        }
-
-                        if (!isIgnoringBattery) {
-                                Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        elevation =
-                                                CardDefaults.cardElevation(defaultElevation = 2.dp),
-                                        colors =
-                                                CardDefaults.cardColors(
-                                                        containerColor =
-                                                                MaterialTheme.colorScheme
-                                                                        .errorContainer
-                                                )
-                                ) {
-                                        Row(
-                                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                        Text(
-                                                                text = "Battery Optimization",
-                                                                style =
-                                                                        MaterialTheme.typography
-                                                                                .bodyMedium
-                                                        )
-                                                        Text(
-                                                                text =
-                                                                        "Disable battery optimization to keep sync running in background",
-                                                                style =
-                                                                        MaterialTheme.typography
-                                                                                .bodySmall,
-                                                                color =
-                                                                        MaterialTheme.colorScheme
-                                                                                .onErrorContainer
-                                                        )
-                                                }
-                                                Button(
-                                                        onClick = {
-                                                                try {
-                                                                        val intent =
-                                                                                android.content
-                                                                                        .Intent(
-                                                                                                android.provider
-                                                                                                        .Settings
-                                                                                                        .ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-                                                                                        )
-                                                                        intent.data =
-                                                                                Uri.parse(
-                                                                                        "package:${context.packageName}"
-                                                                                )
-                                                                        context.startActivity(
-                                                                                intent
-                                                                        )
-                                                                        // Re-check after returning
-                                                                        isIgnoringBattery =
-                                                                                powerManager
-                                                                                        .isIgnoringBatteryOptimizations(
-                                                                                                context.packageName
-                                                                                        )
-                                                                } catch (e: Exception) {
-                                                                        Toast.makeText(
-                                                                                        context,
-                                                                                        "Could not open battery settings",
-                                                                                        android.widget
-                                                                                                .Toast
-                                                                                                .LENGTH_SHORT
-                                                                                )
-                                                                                .show()
-                                                                }
-                                                        },
-                                                        contentPadding =
-                                                                PaddingValues(
-                                                                        horizontal = 16.dp,
-                                                                        vertical = 8.dp
-                                                                )
-                                                ) { Text("Disable") }
-                                        }
-                                }
-                        }
+                        // Battery optimization moved to Permissions area
 
                         // 3. Appearance (Font Size & Theme)
                         Card(
@@ -732,6 +569,54 @@ fun SettingsScreen(
                                                         }
                                                 )
                                         }
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        // Battery Optimization Permission
+                                        val powerManager = remember {
+                                                context.getSystemService(Context.POWER_SERVICE) as
+                                                        PowerManager
+                                        }
+                                        var isIgnoringBattery by remember {
+                                                mutableStateOf(
+                                                        powerManager.isIgnoringBatteryOptimizations(
+                                                                context.packageName
+                                                        )
+                                                )
+                                        }
+
+                                        PermissionItem(
+                                                label = "Battery Optimization",
+                                                isGranted = isIgnoringBattery,
+                                                onRequestPermission = {
+                                                        try {
+                                                                val intent =
+                                                                        android.content.Intent(
+                                                                                android.provider
+                                                                                        .Settings
+                                                                                        .ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                                                                        )
+                                                                intent.data =
+                                                                        Uri.parse(
+                                                                                "package:${context.packageName}"
+                                                                        )
+                                                                context.startActivity(intent)
+                                                                isIgnoringBattery =
+                                                                        powerManager
+                                                                                .isIgnoringBatteryOptimizations(
+                                                                                        context.packageName
+                                                                                )
+                                                        } catch (e: Exception) {
+                                                                Toast.makeText(
+                                                                                context,
+                                                                                "Could not open battery settings",
+                                                                                android.widget.Toast
+                                                                                        .LENGTH_SHORT
+                                                                        )
+                                                                        .show()
+                                                        }
+                                                }
+                                        )
                                 }
                         }
 
