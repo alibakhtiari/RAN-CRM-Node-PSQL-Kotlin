@@ -39,7 +39,7 @@ export default function UserCallLogsTab({ userId }: { userId: string }) {
                 <div className="text-red-600 py-4 text-center">Failed to load call logs</div>
             ) : isLoading ? (
                 <div className="text-center py-4 text-gray-500">Loading call logs...</div>
-            ) : data?.items?.length === 0 ? (
+            ) : !data?.items?.length ? (
                 <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
                     No call logs found.
                 </div>
@@ -59,7 +59,7 @@ export default function UserCallLogsTab({ userId }: { userId: string }) {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 bg-white">
-                                            {data?.items.map((call: CallLog) => (
+                                            {data?.items?.map((call: CallLog) => (
                                                 <tr key={call.id}>
                                                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                                                         {call.contact_name || 'Unknown'}
@@ -67,8 +67,8 @@ export default function UserCallLogsTab({ userId }: { userId: string }) {
                                                     </td>
                                                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                                                         <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${call.direction === 'missed' ? 'bg-red-50 text-red-700 ring-red-600/10' :
-                                                                call.direction === 'incoming' ? 'bg-blue-50 text-blue-700 ring-blue-600/10' :
-                                                                    'bg-green-50 text-green-700 ring-green-600/10'
+                                                            call.direction === 'incoming' ? 'bg-blue-50 text-blue-700 ring-blue-600/10' :
+                                                                'bg-green-50 text-green-700 ring-green-600/10'
                                                             }`}>
                                                             {call.direction.charAt(0).toUpperCase() + call.direction.slice(1)}
                                                         </span>
@@ -88,7 +88,7 @@ export default function UserCallLogsTab({ userId }: { userId: string }) {
                         </div>
                     </div>
 
-                    {data?.totalPages > 1 && (
+                    {(data?.totalPages || 0) > 1 && (
                         <div className="mt-4 flex items-center justify-between">
                             <button
                                 onClick={() => setPage((p) => Math.max(1, p - 1))}

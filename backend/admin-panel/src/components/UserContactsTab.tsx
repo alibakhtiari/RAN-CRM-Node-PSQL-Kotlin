@@ -110,7 +110,7 @@ export default function UserContactsTab({ userId }: { userId: string }) {
                 <div className="text-red-600 py-4 text-center">Failed to load contacts</div>
             ) : isLoading ? (
                 <div className="text-center py-4 text-gray-500">Loading contacts...</div>
-            ) : data?.items?.length === 0 ? (
+            ) : !data?.items?.length ? (
                 <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
                     No contacts found.
                 </div>
@@ -130,7 +130,7 @@ export default function UserContactsTab({ userId }: { userId: string }) {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 bg-white">
-                                            {data?.items.map((contact: Contact) => (
+                                            {data?.items?.map((contact: Contact) => (
                                                 <tr key={contact.id}>
                                                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                                                         {editingContact?.id === contact.id ? (
@@ -180,7 +180,7 @@ export default function UserContactsTab({ userId }: { userId: string }) {
                         </div>
                     </div>
 
-                    {data?.totalPages > 1 && (
+                    {(data?.totalPages || 0) > 1 && (
                         <div className="mt-4 flex items-center justify-between">
                             <button
                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
