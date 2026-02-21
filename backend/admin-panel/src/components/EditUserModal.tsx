@@ -1,4 +1,4 @@
-import { Fragment, useEffect } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,6 +6,8 @@ import { z } from 'zod';
 import api from '../lib/axios';
 import { useMutation } from '@tanstack/react-query';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import UserContactsTab from './UserContactsTab';
+import UserCallLogsTab from './UserCallLogsTab';
 
 const editUserSchema = z.object({
     name: z.string().min(1, 'Name is required'),
@@ -30,6 +32,14 @@ interface EditUserModalProps {
 }
 
 export default function EditUserModal({ isOpen, onClose, onSuccess, user }: EditUserModalProps) {
+    const [activeTab, setActiveTab] = useState<'details' | 'contacts' | 'calls'>('details');
+
+    useEffect(() => {
+        if (!isOpen) {
+            setActiveTab('details');
+        }
+    }, [isOpen]);
+
     const {
         register,
         handleSubmit,
@@ -106,7 +116,7 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                             leaveFrom="opacity-100 translate-y-0 sm:scale-100"
                             leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                         >
-                            <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                            <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
                                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                                     <button
                                         type="button"
@@ -119,77 +129,118 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                                 </div>
                                 <div className="sm:flex sm:items-start">
                                     <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                                        <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
+                                        <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900 mb-2">
                                             Edit User: {user?.username}
                                         </Dialog.Title>
+
+                                        <div className="border-b border-gray-200 mb-4">
+                                            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                                                <button
+                                                    onClick={() => setActiveTab('details')}
+                                                    className={`${activeTab === 'details'
+                                                            ? 'border-blue-500 text-blue-600'
+                                                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                                        } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium`}
+                                                >
+                                                    Details
+                                                </button>
+                                                <button
+                                                    onClick={() => setActiveTab('contacts')}
+                                                    className={`${activeTab === 'contacts'
+                                                            ? 'border-blue-500 text-blue-600'
+                                                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                                        } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium`}
+                                                >
+                                                    Contacts
+                                                </button>
+                                                <button
+                                                    onClick={() => setActiveTab('calls')}
+                                                    className={`${activeTab === 'calls'
+                                                            ? 'border-blue-500 text-blue-600'
+                                                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                                        } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium`}
+                                                >
+                                                    Call Logs
+                                                </button>
+                                            </nav>
+                                        </div>
+
                                         <div className="mt-4">
-                                            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                                                <div>
-                                                    <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900">
-                                                        Name
-                                                    </label>
-                                                    <div className="mt-2">
-                                                        <input
-                                                            id="name"
-                                                            type="text"
-                                                            autoComplete="name"
-                                                            {...register('name')}
-                                                            className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                                                        />
-                                                        {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
-                                                    </div>
-                                                </div>
-
-                                                <div>
-                                                    <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900">
-                                                        New Password (Optional)
-                                                    </label>
-                                                    <div className="mt-2">
-                                                        <input
-                                                            id="password"
-                                                            type="password"
-                                                            autoComplete="new-password"
-                                                            {...register('password')}
-                                                            placeholder="Leave blank to keep current password"
-                                                            className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                                                        />
-                                                        {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
-                                                    </div>
-                                                </div>
-
-                                                <div className="relative flex gap-x-3 items-center">
-                                                    <div className="flex h-6 items-center">
-                                                        <input
-                                                            id="is_admin"
-                                                            type="checkbox"
-                                                            {...register('is_admin')}
-                                                            className="h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-600"
-                                                        />
-                                                    </div>
-                                                    <div className="text-sm leading-6">
-                                                        <label htmlFor="is_admin" className="font-medium text-gray-900">
-                                                            Administrator Privileges
+                                            {activeTab === 'details' && (
+                                                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                                                    <div>
+                                                        <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900">
+                                                            Name
                                                         </label>
+                                                        <div className="mt-2">
+                                                            <input
+                                                                id="name"
+                                                                type="text"
+                                                                autoComplete="name"
+                                                                {...register('name')}
+                                                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                                                            />
+                                                            {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
+                                                        </div>
                                                     </div>
-                                                </div>
 
-                                                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                                                    <button
-                                                        type="submit"
-                                                        disabled={mutation.isPending}
-                                                        className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
-                                                    >
-                                                        {mutation.isPending ? 'Saving...' : 'Save Changes'}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-                                                        onClick={onClose}
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                </div>
-                                            </form>
+                                                    <div>
+                                                        <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900">
+                                                            New Password (Optional)
+                                                        </label>
+                                                        <div className="mt-2">
+                                                            <input
+                                                                id="password"
+                                                                type="password"
+                                                                autoComplete="new-password"
+                                                                {...register('password')}
+                                                                placeholder="Leave blank to keep current password"
+                                                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                                                            />
+                                                            {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="relative flex gap-x-3 items-center">
+                                                        <div className="flex h-6 items-center">
+                                                            <input
+                                                                id="is_admin"
+                                                                type="checkbox"
+                                                                {...register('is_admin')}
+                                                                className="h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-600"
+                                                            />
+                                                        </div>
+                                                        <div className="text-sm leading-6">
+                                                            <label htmlFor="is_admin" className="font-medium text-gray-900">
+                                                                Administrator Privileges
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                                                        <button
+                                                            type="submit"
+                                                            disabled={mutation.isPending}
+                                                            className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50"
+                                                        >
+                                                            {mutation.isPending ? 'Saving...' : 'Save Changes'}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                                                            onClick={onClose}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            )}
+                                            {activeTab === 'contacts' && user && (
+                                                <UserContactsTab userId={user.id} />
+                                            )}
+                                            {activeTab === 'calls' && user && (
+                                                <UserCallLogsTab userId={user.id} />
+                                            )}
                                         </div>
                                     </div>
                                 </div>
