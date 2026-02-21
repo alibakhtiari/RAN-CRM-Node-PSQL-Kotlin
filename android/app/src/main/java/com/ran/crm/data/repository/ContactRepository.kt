@@ -215,13 +215,14 @@ class ContactRepository(
         updateLastSyncTime()
     }
 
-    suspend fun uploadDirtyContacts() {
+    suspend fun uploadDirtyContacts(): Boolean {
         val dirtyContacts = contactDao.getDirtyContacts()
-        if (dirtyContacts.isEmpty()) return
+        if (dirtyContacts.isEmpty()) return true
 
         SyncLogger.log("Repo: Uploading ${dirtyContacts.size} dirty contacts")
 
         val chunks = dirtyContacts.chunked(100)
+        var allSuccess = true
 
         for (chunk in chunks) {
             val batchRequest =
@@ -256,10 +257,9 @@ class ContactRepository(
                                             name = it.name,
                                             phoneRaw = it.phoneRaw,
                                             phoneNormalized = it.phoneNormalized,
-                                            createdBy = it.createdBy
-                                                            ?: preferenceManager.userId ?: "",
+                                            createdBy = it.createdBy,
                                             createdAt = it.createdAt,
-                                            updatedAt = it.updatedAt ?: DateUtils.formatIso(),
+                                            updatedAt = it.updatedAt,
                                             syncStatus = 0
                                     )
                                 }
@@ -279,17 +279,19 @@ class ContactRepository(
 
                     if (response.errors.isNotEmpty()) {
                         SyncLogger.log("Repo: Batch upload had ${response.errors.size} errors")
+                        allSuccess = false
                     }
-                    SyncLogger.log(
-                            "Repo: Batch upload success: ${serverContacts.size} created/updated"
-                    )
+                    SyncLogger.log("Repo: Batch upload success: ${serverContacts.size} processed")
                 } else {
                     SyncLogger.log("Repo: Batch upload failed")
+                    allSuccess = false
                 }
             } catch (e: Exception) {
                 SyncLogger.log("Repo: Batch upload exception: ${e.message}")
+                allSuccess = false
             }
         }
+        return allSuccess
     }
 
     suspend fun createContact(name: String, phoneRaw: String, phoneNormalized: String): Contact? {

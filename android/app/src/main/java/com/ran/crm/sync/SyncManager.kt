@@ -163,7 +163,12 @@ class SyncManager private constructor(private val context: Context) {
             }
 
             // STEP 1: Upload Dirty Contacts (Offline-First)
-            contactRepository.uploadDirtyContacts()
+            val uploadSuccess = contactRepository.uploadDirtyContacts()
+            if (!uploadSuccess) {
+                SyncLogger.log("Warning: Batch upload of dirty contacts had failures.")
+                // We map this as a failure state if any batch upload errors out
+                return false
+            }
 
             // STEP 2: Download from Server
             if (isFullSync) {
