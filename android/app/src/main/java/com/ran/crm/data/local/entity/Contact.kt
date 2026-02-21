@@ -12,8 +12,7 @@ import com.google.gson.annotations.SerializedName
                 [
                         Index(value = ["phone_normalized"]),
                         Index(value = ["sync_status"]),
-                        Index(value = ["created_by"])
-                ]
+                        Index(value = ["created_by"])]
 )
 data class Contact(
         @PrimaryKey @SerializedName("id") val id: String, // UUID
@@ -34,5 +33,6 @@ data class Contact(
         @ColumnInfo(name = "creator_name")
         @SerializedName("creator_name")
         val creatorName: String? = null,
-        @ColumnInfo(name = "sync_status") val syncStatus: Int = 0 // 0 = Synced, 1 = Dirty/Pending
+        @ColumnInfo(name = "sync_status") val syncStatus: Int = 0, // 0 = Synced, 1 = Dirty/Pending
+        @ColumnInfo(name = "deleted_at") @SerializedName("deleted_at") val deletedAt: String? = null
 )

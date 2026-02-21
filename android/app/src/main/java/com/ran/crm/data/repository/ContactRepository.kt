@@ -192,9 +192,25 @@ class ContactRepository(
                     val contacts = response.data
 
                     if (contacts.isNotEmpty()) {
-                        val entities = contacts.map { it.copy(syncStatus = 0) }
-                        contactDao.insertContacts(entities)
-                        SyncLogger.log("Repo: Delta fetched ${contacts.size} contacts")
+                        val activeContacts =
+                                contacts.filter { it.deletedAt == null }.map {
+                                    it.copy(syncStatus = 0)
+                                }
+                        val deletedContacts = contacts.filter { it.deletedAt != null }
+
+                        if (activeContacts.isNotEmpty()) {
+                            contactDao.insertContacts(activeContacts)
+                            SyncLogger.log(
+                                    "Repo: Delta inserted/updated ${activeContacts.size} active contacts"
+                            )
+                        }
+
+                        if (deletedContacts.isNotEmpty()) {
+                            deletedContacts.forEach { contactDao.deleteContactById(it.id) }
+                            SyncLogger.log(
+                                    "Repo: Delta deleted ${deletedContacts.size} soft-deleted contacts"
+                            )
+                        }
                     }
 
                     if (contacts.size < limit) {

@@ -9,7 +9,7 @@ import com.ran.crm.data.local.entity.*
 
 @Database(
         entities = [User::class, Contact::class, CallLog::class, SyncAudit::class],
-        version = 5,
+        version = 6,
         exportSchema = true
 )
 abstract class CrmDatabase : RoomDatabase() {
