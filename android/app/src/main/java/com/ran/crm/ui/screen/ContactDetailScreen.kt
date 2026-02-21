@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ContactDetailScreen(
         contactId: String,
+        currentUserId: String?,
         onBackClick: () -> Unit,
         onEditClick: (String) -> Unit,
         contactRepository: ContactRepository,
@@ -75,18 +76,21 @@ fun ContactDetailScreen(
                         },
                         actions = {
                             contact?.let {
-                                IconButton(onClick = { onEditClick(contactId) }) {
-                                    Icon(
-                                            imageVector = Icons.Filled.Edit,
-                                            contentDescription = "Edit"
-                                    )
-                                }
-                                IconButton(onClick = { showDeleteDialog = true }) {
-                                    Icon(
-                                            imageVector = Icons.Filled.Delete,
-                                            contentDescription = "Delete",
-                                            tint = MaterialTheme.colorScheme.error
-                                    )
+                                val isOwner = currentUserId == null || it.createdBy == currentUserId
+                                if (isOwner) {
+                                    IconButton(onClick = { onEditClick(contactId) }) {
+                                        Icon(
+                                                imageVector = Icons.Filled.Edit,
+                                                contentDescription = "Edit"
+                                        )
+                                    }
+                                    IconButton(onClick = { showDeleteDialog = true }) {
+                                        Icon(
+                                                imageVector = Icons.Filled.Delete,
+                                                contentDescription = "Delete",
+                                                tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
                         }

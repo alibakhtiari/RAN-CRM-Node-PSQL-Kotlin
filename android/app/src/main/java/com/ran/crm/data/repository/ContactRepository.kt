@@ -241,16 +241,48 @@ class ContactRepository(
 
                 if (result is com.ran.crm.data.remote.ApiResult.Success) {
                     val response = result.data
-                    val syncedIds = response.results.map { it.contact.id }
 
-                    if (syncedIds.isNotEmpty()) {
-                        contactDao.markAsSynced(syncedIds)
+                    // The server generates new IDs for contacts created offline.
+                    // We must update our local contacts with the server's ID, or just insert the
+                    // server ones and delete the dirty ones.
+                    // Safest approach: For each successful remote contact, insert it (or replace)
+                    // and delete the old dirty one matching by phone.
+                    val serverContacts = response.results.map { it.contact }
+                    if (serverContacts.isNotEmpty()) {
+                        val serverEntities =
+                                serverContacts.map {
+                                    Contact(
+                                            id = it.id,
+                                            name = it.name,
+                                            phoneRaw = it.phoneRaw,
+                                            phoneNormalized = it.phoneNormalized,
+                                            createdBy = it.createdBy
+                                                            ?: preferenceManager.userId ?: "",
+                                            createdAt = it.createdAt,
+                                            updatedAt = it.updatedAt ?: DateUtils.formatIso(),
+                                            syncStatus = 0
+                                    )
+                                }
+
+                        // To avoid duplicates, we can delete the local dirty ones that match the
+                        // phone numbers of successfully synced contacts.
+                        val syncedPhones = serverEntities.map { it.phoneNormalized }
+                        for (phone in syncedPhones) {
+                            val oldLocal = contactDao.getContactByPhoneNormalized(phone)
+                            if (oldLocal != null) {
+                                contactDao.deleteContactById(oldLocal.id)
+                            }
+                        }
+
+                        contactDao.insertContacts(serverEntities)
                     }
 
                     if (response.errors.isNotEmpty()) {
                         SyncLogger.log("Repo: Batch upload had ${response.errors.size} errors")
                     }
-                    SyncLogger.log("Repo: Batch upload success: ${syncedIds.size} created/updated")
+                    SyncLogger.log(
+                            "Repo: Batch upload success: ${serverContacts.size} created/updated"
+                    )
                 } else {
                     SyncLogger.log("Repo: Batch upload failed")
                 }

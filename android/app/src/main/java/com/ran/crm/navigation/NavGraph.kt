@@ -57,6 +57,7 @@ fun NavGraph(
             val contactId = backStackEntry.arguments?.getString("contactId") ?: ""
             ContactDetailScreen(
                     contactId = contactId,
+                    currentUserId = preferenceManager.userId,
                     onBackClick = { navController.popBackStack() },
                     onEditClick = { id ->
                         navController.navigate(Screen.AddEditContact.createRoute(id))
@@ -86,6 +87,7 @@ fun NavGraph(
             val contactId = backStackEntry.arguments?.getString("contactId")
             AddEditContactScreen(
                     contactId = contactId,
+                    currentUserId = preferenceManager.userId,
                     onBackClick = { navController.popBackStack() },
                     contactRepository = contactRepository
             )

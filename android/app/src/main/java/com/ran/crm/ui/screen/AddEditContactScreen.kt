@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AddEditContactScreen(
         contactId: String?,
+        currentUserId: String?,
         onBackClick: () -> Unit,
         contactRepository: ContactRepository
 ) {
@@ -33,6 +34,11 @@ fun AddEditContactScreen(
             isEditMode = true
             val contact = contactRepository.getContactById(contactId)
             if (contact != null) {
+                // If the user isn't the owner, they shouldn't be here
+                if (currentUserId != null && contact.createdBy != currentUserId) {
+                    onBackClick()
+                    return@LaunchedEffect
+                }
                 name = contact.name
                 phoneRaw = contact.phoneRaw
             }
