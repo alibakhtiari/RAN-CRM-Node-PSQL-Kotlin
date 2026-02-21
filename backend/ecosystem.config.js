@@ -1,6 +1,6 @@
 module.exports = {
     apps: [{
-        name: 'ran-crm-backend',
+        name: 'ran-crm',
         script: 'src/server.js',
         instances: 1,
         autorestart: true,
