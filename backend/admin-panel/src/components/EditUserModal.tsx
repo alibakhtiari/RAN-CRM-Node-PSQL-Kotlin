@@ -138,8 +138,8 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                                                 <button
                                                     onClick={() => setActiveTab('details')}
                                                     className={`${activeTab === 'details'
-                                                            ? 'border-blue-500 text-blue-600'
-                                                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                                        ? 'border-blue-500 text-blue-600'
+                                                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                                                         } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium`}
                                                 >
                                                     Details
@@ -147,8 +147,8 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                                                 <button
                                                     onClick={() => setActiveTab('contacts')}
                                                     className={`${activeTab === 'contacts'
-                                                            ? 'border-blue-500 text-blue-600'
-                                                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                                        ? 'border-blue-500 text-blue-600'
+                                                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                                                         } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium`}
                                                 >
                                                     Contacts
@@ -156,8 +156,8 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                                                 <button
                                                     onClick={() => setActiveTab('calls')}
                                                     className={`${activeTab === 'calls'
-                                                            ? 'border-blue-500 text-blue-600'
-                                                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                                        ? 'border-blue-500 text-blue-600'
+                                                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                                                         } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium`}
                                                 >
                                                     Call Logs
@@ -178,7 +178,7 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                                                                 type="text"
                                                                 autoComplete="name"
                                                                 {...register('name')}
-                                                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                                                                className="block w-full rounded-md border-0 py-1.5 px-2 text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
                                                             />
                                                             {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
                                                         </div>
@@ -195,7 +195,7 @@ export default function EditUserModal({ isOpen, onClose, onSuccess, user }: Edit
                                                                 autoComplete="new-password"
                                                                 {...register('password')}
                                                                 placeholder="Leave blank to keep current password"
-                                                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                                                                className="block w-full rounded-md border-0 py-1.5 px-2 text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
                                                             />
                                                             {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
                                                         </div>
