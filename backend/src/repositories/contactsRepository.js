@@ -10,7 +10,7 @@ class ContactsRepository {
   /**
    * Find contacts with pagination and filtering
    */
-  async findAll({ limit, offset, updatedSince, search }) {
+  async findAll({ limit, offset, updatedSince, search, userId }) {
     let query = db('contacts as c')
       .leftJoin('users as u', 'c.created_by', 'u.id')
       .select(
@@ -21,9 +21,17 @@ class ContactsRepository {
         'c.created_by',
         'c.created_at',
         'c.updated_at',
+        'c.deleted_at',
         'u.name as creator_name'
-      )
-      .whereNull('c.deleted_at');
+      );
+
+    if (!updatedSince) {
+      query = query.whereNull('c.deleted_at');
+    }
+
+    if (userId) {
+      query = query.where('c.created_by', userId);
+    }
 
     if (updatedSince) {
       query = query.where('c.updated_at', '>', updatedSince);
@@ -50,8 +58,16 @@ class ContactsRepository {
   /**
    * Count contacts matching filter
    */
-  async count({ updatedSince, search }) {
-    let query = db('contacts as c').count('* as count').whereNull('c.deleted_at');
+  async count({ updatedSince, search, userId }) {
+    let query = db('contacts as c').count('* as count');
+
+    if (!updatedSince) {
+      query = query.whereNull('c.deleted_at');
+    }
+
+    if (userId) {
+      query = query.where('c.created_by', userId);
+    }
 
     if (updatedSince) {
       query = query.where('c.updated_at', '>', updatedSince);

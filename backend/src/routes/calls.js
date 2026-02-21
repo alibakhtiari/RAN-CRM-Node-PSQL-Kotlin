@@ -14,7 +14,7 @@ router.use(authenticateToken);
 // GET /calls
 router.get('/', asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPaginationParams(req);
-  const { updated_since } = req.query;
+  const { updated_since, user_id } = req.query;
 
   let query = db('call_logs as cl')
     .leftJoin('contacts as c', 'cl.contact_id', 'c.id')
@@ -30,6 +30,9 @@ router.get('/', asyncHandler(async (req, res) => {
   if (!req.user.is_admin) {
     query.where('cl.user_id', req.user.id);
     countQuery.where('cl.user_id', req.user.id);
+  } else if (user_id) {
+    query.where('cl.user_id', user_id);
+    countQuery.where('cl.user_id', user_id);
   }
 
   if (updated_since) {

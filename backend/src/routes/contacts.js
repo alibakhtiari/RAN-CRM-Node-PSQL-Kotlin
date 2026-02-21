@@ -24,13 +24,14 @@ const checkOwnership = (contact, user) => {
 // Shared handler for getting contacts
 const getContacts = asyncHandler(async (req, res) => {
   const { page, limit, offset } = getPaginationParams(req);
-  const { updated_since, q } = req.query;
+  const { updated_since, q, user_id } = req.query;
 
   const search = (q && q.trim().length >= 2) ? q : null;
   const updatedSince = updated_since ? new Date(updated_since) : null;
+  const userId = user_id || null;
 
-  const total = await contactsRepository.count({ updatedSince, search });
-  const contacts = await contactsRepository.findAll({ limit, offset, updatedSince, search });
+  const total = await contactsRepository.count({ updatedSince, search, userId });
+  const contacts = await contactsRepository.findAll({ limit, offset, updatedSince, search, userId });
 
   res.json(getPaginationResult(contacts, total, page, limit));
 });
