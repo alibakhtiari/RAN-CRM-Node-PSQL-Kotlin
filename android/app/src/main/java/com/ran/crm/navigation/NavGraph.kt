@@ -78,7 +78,6 @@ fun NavGraph(
             SettingsScreen(
                     navController = navController,
                     preferenceManager = preferenceManager,
-                    contactMigrationManager = contactMigrationManager,
                     onBackClick = { navController.popBackStack() }
             )
         }

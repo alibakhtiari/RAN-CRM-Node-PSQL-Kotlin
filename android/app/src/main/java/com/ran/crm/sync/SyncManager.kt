@@ -153,13 +153,20 @@ class SyncManager private constructor(private val context: Context) {
         try {
             // STEP 0: Automatic System Import (Device -> App)
             try {
+                // Delete after import since it imports, runs sync to server and localizes anyway
                 val importedCount =
-                        contactMigrationManager.importSystemContacts(deleteAfterImport = false)
+                        contactMigrationManager.importSystemContacts(deleteAfterImport = true)
                 if (importedCount > 0) {
-                    SyncLogger.log("Auto-Import: Imported $importedCount new contacts from device")
+                    SyncLogger.log(
+                            "SyncManager (Auto-Import): Successfully imported and swept $importedCount new contacts from device"
+                    )
+                } else {
+                    SyncLogger.log(
+                            "SyncManager (Auto-Import): No new system contacts found to import"
+                    )
                 }
             } catch (e: Exception) {
-                SyncLogger.log("Auto-Import Failed (Non-critical)", e)
+                SyncLogger.log("SyncManager (Auto-Import): Failed (Non-critical)", e)
             }
 
             // STEP 1: Upload Dirty Contacts (Offline-First)
