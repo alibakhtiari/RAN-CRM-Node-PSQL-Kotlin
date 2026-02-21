@@ -29,10 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Observer
 import androidx.navigation.NavController
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
 import com.ran.crm.data.local.PreferenceManager
 import com.ran.crm.data.remote.ApiClient
 import com.ran.crm.ui.AppConfig
@@ -51,7 +48,7 @@ fun SettingsScreen(
         val scope = rememberCoroutineScope()
 
         // Sync Status
-        var isSyncing by remember { mutableStateOf(false) }
+        // Sync Status
         var lastSyncTime by remember { mutableStateOf(preferenceManager.lastSyncContacts) }
 
         // Server Status
@@ -97,35 +94,7 @@ fun SettingsScreen(
                 }
         }
 
-        // Observe WorkManager
-        DisposableEffect(Unit) {
-                val observer =
-                        Observer<List<WorkInfo>> { workInfos ->
-                                val syncWorkInfo = workInfos.firstOrNull()
-                                if (syncWorkInfo != null) {
-                                        // Only show the spinner if the sync is actually running,
-                                        // since ENQUEUED could just be a scheduled periodic sync or
-                                        // a backoff retry.
-                                        isSyncing = syncWorkInfo.state == WorkInfo.State.RUNNING
-
-                                        if (syncWorkInfo.state == WorkInfo.State.SUCCEEDED) {
-                                                lastSyncTime = preferenceManager.lastSyncContacts
-                                                isSyncing = false
-                                        } else if (syncWorkInfo.state == WorkInfo.State.FAILED ||
-                                                        syncWorkInfo.state ==
-                                                                WorkInfo.State.CANCELLED
-                                        ) {
-                                                isSyncing = false
-                                        }
-                                }
-                        }
-                val liveData =
-                        WorkManager.getInstance(context)
-                                .getWorkInfosForUniqueWorkLiveData("crm_sync_work_one_time")
-
-                liveData.observeForever(observer)
-                onDispose { liveData.removeObserver(observer) }
-        }
+        // Force recomposition when permissions change
 
         Scaffold(
                 topBar = {
@@ -308,42 +277,6 @@ fun SettingsScreen(
                                                                         MaterialTheme.colorScheme
                                                                                 .onSurfaceVariant
                                                         )
-                                                }
-
-                                                Button(
-                                                        onClick = {
-                                                                android.util.Log.d(
-                                                                        "SettingsScreen",
-                                                                        "Manual sync requested by user"
-                                                                )
-                                                                SyncWorker.scheduleOneTimeSync(
-                                                                        context,
-                                                                        forceFullSync = true,
-                                                                        isManual = true
-                                                                )
-                                                        },
-                                                        enabled = !isSyncing,
-                                                        contentPadding =
-                                                                PaddingValues(
-                                                                        horizontal = 16.dp,
-                                                                        vertical = 8.dp
-                                                                )
-                                                ) {
-                                                        if (isSyncing) {
-                                                                CircularProgressIndicator(
-                                                                        modifier =
-                                                                                Modifier.size(
-                                                                                        16.dp
-                                                                                ),
-                                                                        color =
-                                                                                MaterialTheme
-                                                                                        .colorScheme
-                                                                                        .onPrimary,
-                                                                        strokeWidth = 2.dp
-                                                                )
-                                                        } else {
-                                                                Text("Sync")
-                                                        }
                                                 }
                                         }
 
