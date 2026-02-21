@@ -35,7 +35,7 @@ fun AddEditContactScreen(
             val contact = contactRepository.getContactById(contactId)
             if (contact != null) {
                 // If the user isn't the owner, they shouldn't be here
-                if (currentUserId != null && contact.createdBy != currentUserId) {
+                if (currentUserId == null || contact.createdBy != currentUserId) {
                     onBackClick()
                     return@LaunchedEffect
                 }
