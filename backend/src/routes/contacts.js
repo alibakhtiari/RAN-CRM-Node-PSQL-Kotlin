@@ -179,7 +179,7 @@ router.post('/batch', validate(batchStructureSchema), asyncHandler(async (req, r
   const rows = await contactsRepository.batchUpsert(validContacts, req.user.id, { restoreDeleted: !!force_restore });
 
   const results = rows.map(row => ({
-    action: row.is_insert ? 'created' : 'updated',
+    action: row.is_existing ? 'existing' : (row.is_insert ? 'created' : 'updated'),
     contact: {
       id: row.id,
       name: row.name,

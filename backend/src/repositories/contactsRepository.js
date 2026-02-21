@@ -122,11 +122,16 @@ class ContactsRepository {
                 .first();
               updated.is_insert = false;
               results.push(updated);
+            } else {
+              // existing is newer, skip update but return in results
+              existing.is_existing = true;
+              results.push(existing);
             }
-            // else: existing is newer, skip
+          } else {
+            // different user owns this contact, skip update but return in results
+            existing.is_existing = true;
+            results.push(existing);
           }
-          // else: different user owns this contact, skip
-        } else {
           // Insert new contact
           const newId = crypto.randomUUID();
           await trx('contacts')
