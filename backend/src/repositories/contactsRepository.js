@@ -132,6 +132,7 @@ class ContactsRepository {
             existing.is_existing = true;
             results.push(existing);
           }
+        } else {
           // Insert new contact
           const newId = crypto.randomUUID();
           await trx('contacts')
