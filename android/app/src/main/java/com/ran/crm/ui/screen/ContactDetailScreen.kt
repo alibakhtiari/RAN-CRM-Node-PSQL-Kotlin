@@ -76,7 +76,7 @@ fun ContactDetailScreen(
                         },
                         actions = {
                             contact?.let {
-                                val isOwner = currentUserId == null || it.createdBy == currentUserId
+                                val isOwner = currentUserId != null && it.createdBy == currentUserId
                                 if (isOwner) {
                                     IconButton(onClick = { onEditClick(contactId) }) {
                                         Icon(
