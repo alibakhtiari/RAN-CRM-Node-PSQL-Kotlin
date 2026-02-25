@@ -35,6 +35,7 @@ import com.ran.crm.data.local.PreferenceManager
 import com.ran.crm.data.manager.ContactMigrationManager
 import com.ran.crm.data.remote.ApiClient
 import com.ran.crm.data.repository.AuthRepository
+import com.ran.crm.data.repository.CallLogRepository
 import com.ran.crm.data.repository.ContactRepository
 import com.ran.crm.navigation.NavGraph
 import com.ran.crm.service.CallLogObserver
@@ -100,6 +101,7 @@ class MainActivity : ComponentActivity() {
 
         authRepository = AuthRepository(preferenceManager)
         val contactRepository = ContactRepository(database.contactDao(), preferenceManager)
+        val callLogRepository = CallLogRepository(database.callLogDao(), preferenceManager)
         contactMigrationManager = ContactMigrationManager(this, contactRepository)
 
         // Register logout receiver
@@ -156,6 +158,8 @@ class MainActivity : ComponentActivity() {
                             authRepository,
                             preferenceManager,
                             contactMigrationManager,
+                            contactRepository,
+                            callLogRepository,
                             onCallLogPermissionGranted = { callLogObserver.register() }
                     )
                 }
@@ -180,6 +184,8 @@ fun CrmApp(
         authRepository: AuthRepository,
         preferenceManager: PreferenceManager,
         contactMigrationManager: ContactMigrationManager,
+        contactRepository: ContactRepository,
+        callLogRepository: CallLogRepository,
         onCallLogPermissionGranted: () -> Unit
 ) {
     val navController = rememberNavController()
@@ -210,6 +216,8 @@ fun CrmApp(
             database = database,
             authRepository = authRepository,
             preferenceManager = preferenceManager,
-            contactMigrationManager = contactMigrationManager
+            contactMigrationManager = contactMigrationManager,
+            contactRepository = contactRepository,
+            callLogRepository = callLogRepository
     )
 }

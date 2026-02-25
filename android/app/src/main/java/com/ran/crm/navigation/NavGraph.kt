@@ -18,10 +18,10 @@ fun NavGraph(
         database: CrmDatabase,
         authRepository: AuthRepository,
         preferenceManager: PreferenceManager,
-        contactMigrationManager: ContactMigrationManager
+        contactMigrationManager: ContactMigrationManager,
+        contactRepository: ContactRepository,
+        callLogRepository: CallLogRepository
 ) {
-    val contactRepository = ContactRepository(database.contactDao(), preferenceManager)
-    val callLogRepository = CallLogRepository(database.callLogDao(), preferenceManager)
 
     val startDestination =
             if (authRepository.isLoggedIn()) Screen.Contacts.route else Screen.Login.route
