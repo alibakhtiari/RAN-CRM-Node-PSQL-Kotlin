@@ -34,7 +34,6 @@ abstract class CrmDatabase : RoomDatabase() {
                                         )
                                         // TODO: Add manual Migration objects when schema
                                         //  stabilises and user data must be preserved.
-                                        .fallbackToDestructiveMigration(true)
                                         .build()
                         INSTANCE = instance
                         instance
