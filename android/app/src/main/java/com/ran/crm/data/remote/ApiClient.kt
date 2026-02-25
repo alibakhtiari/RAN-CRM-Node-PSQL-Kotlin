@@ -22,7 +22,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object ApiClient {
 
-    private const val BASE_URL = "https://nc.ramzarznegaran.com/"
+    private const val BASE_URL = BuildConfig.BASE_URL
 
     @Volatile private var authToken: String? = null
 
